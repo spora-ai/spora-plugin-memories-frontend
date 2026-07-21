@@ -1,0 +1,10 @@
+/node_modules/
+/frontend/        # vite build output (composer.json archive.exclude handles this too, but .gitignore is belt-and-suspenders)
+/coverage/
+/coverage.xml
+/.idea/
+/.vscode/
+/.DS_Store
+*.log
+/npm-debug.log*
+/dist/
