@@ -1,10 +1,24 @@
+# Dependencies
 /node_modules/
-/frontend/        # vite build output (composer.json archive.exclude handles this too, but .gitignore is belt-and-suspenders)
+
+# Build artifacts (Vite output)
+/frontend/main.js
+/frontend/style.css
+/.vite/
+/dist/
+
+# Coverage
 /coverage/
 /coverage.xml
+
+# Release packaging artifacts (CI staging + tarballs)
+/package/
+/staging/
+
+# IDE / OS
 /.idea/
 /.vscode/
 /.DS_Store
+*.swp
 *.log
 /npm-debug.log*
-/dist/
