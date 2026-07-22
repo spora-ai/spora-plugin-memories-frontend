@@ -65,27 +65,11 @@ export default defineConfig({
             fileName: () => 'main.js',
         },
         rollupOptions: {
-            // Shared with the host SPA. `md-editor-v3` mounts CodeMirror 6
-            // + highlight.js / katex / mermaid — emitting it inside the
-            // plugin's IIFE would inflate the bundle to ~1 MB and cause
-            // CSS asset collisions with the host. Externalising keeps
-            // the host-side installation the single source of truth.
-            external: ['vue', 'pinia', 'vue-router', 'vue-draggable-plus', 'md-editor-v3'],
+            external: ['vue', 'pinia'],
             output: {
-                // Avoid the IIFE wrapper injecting inline `var` declarations
-                // that would shadow window properties the host relies on.
-                extend: true,
-                // Substitute the default `})(Vue, Pinia);` call site with
-                // `})(window.Vue, window.Pinia);` — bare identifiers resolve
-                // to ReferenceErrors when the host dynamic-imports the bundle
-                // (the IIFE evaluates in module scope where Vue/Pinia aren't
-                // free variables). The host SPA publishes these globals.
                 globals: {
                     vue: 'window.Vue',
                     pinia: 'window.Pinia',
-                    'vue-router': 'window.VueRouter',
-                    'vue-draggable-plus': 'window.VueDraggablePlus',
-                    'md-editor-v3': 'window.MdEditorV3',
                 },
                 assetFileNames: (asset) => {
                     if (asset.name && asset.name.endsWith('.css')) {

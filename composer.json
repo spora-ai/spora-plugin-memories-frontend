@@ -1,6 +1,6 @@
 {
     "name": "spora-ai/spora-plugin-memories-frontend",
-    "description": "Pre-built Vue SPA for the Spora memories admin panel. Delivered as type `spora-plugin-frontend`; the host SPA lazy-loads it via /plugins/spora-plugin-memories-frontend/main.js.",
+    "description": "Pre-built Vue SPA for the Spora memories admin panel. Delivered as type `spora-plugin-frontend`; the host SPA lazy-loads it via /plugins/memories/main.js.",
     "type": "spora-plugin-frontend",
     "license": "MIT",
     "require": {

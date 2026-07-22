@@ -1,6 +1,6 @@
 # spora-plugin-memories-frontend
 
-Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Composer package of type `spora-plugin-frontend`; `spora-installer`'s `SporaPluginFrontendInstaller` copies this repo's `frontend/` directory into `public/plugins/spora-plugin-memories-frontend/` so the host SPA can lazy-load it via `/plugins/spora-plugin-memories-frontend/main.js`.
+Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Composer package of type `spora-plugin-frontend`; `spora-installer`'s `SporaPluginFrontendInstaller` copies this repo's `frontend/` directory into `public/plugins/memories/` so the host SPA can lazy-load it via `/plugins/memories/main.js`.
 
 ## Why a separate repo from the PHP plugin?
 
@@ -10,11 +10,11 @@ Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Compose
 
 ## What it surfaces
 
-The plugin's UI mirrors `spora-frontend/src/apps/memories/` (which it replaces):
+The plugin's UI mirrors the host plugin app shell:
 
 - **Global memories** — memories shared across every agent. Drag-to-reorder, create/edit with a Markdown editor, delete.
 - **Agent memories** — per-agent memory lists. The sidebar exposes a dropdown to flip between agents; the page shows the same CRUD + reorder affordances scoped to the selected agent.
-- **Markdown editor** — each memory's content body uses `md-editor-v3` (externalised at build time, shared with the host SPA so the toolbar styling and CodeMirror bundle aren't duplicated).
+- **Markdown editor** — each memory's content body uses the plugin-bundled `md-editor-v3` editor.
 - **Drag-to-reorder** — `vue-draggable-plus` drives the list ordering UI; reorder mutations PATCH back to the backend.
 
 ## Build
@@ -25,7 +25,7 @@ npm run build   # writes frontend/main.js + frontend/style.css
 npm run smoke   # asserts window.SporaAppMemories.mount is a function
 ```
 
-The build output (`main.js` + `style.css`) is committed to this repo. Operators get the new bundle on the next `composer update`.
+CI generates the build output during release packaging; operators get the new bundle on the next `composer update`.
 
 ## Dev mode (plugin author)
 
@@ -33,7 +33,7 @@ The build output (`main.js` + `style.css`) is committed to this repo. Operators 
 npm run dev   # vite dev server on :5175
 ```
 
-The host SPA's `vite.config.ts` proxies `/plugins/spora-plugin-memories-frontend` to `:5175` so editing `src/*` updates the panel without rebuilding the host. The dev sandbox uses an in-memory mock API (`src/dev-mock.ts`) so it renders without the PHP backend — set `SPORA_PLUGIN_DEV_PORTS=memories:5175` on the host for the cross-port proxy.
+The host SPA's `vite.config.ts` proxies `/plugins/memories` to `:5175` so editing `src/*` updates the panel without rebuilding the host. The dev sandbox uses an in-memory mock API (`src/dev-mock.ts`) so it renders without the PHP backend — set `SPORA_PLUGIN_DEV_PORTS=memories:5175` on the host for the cross-port proxy.
 
 ## Mount contract
 
