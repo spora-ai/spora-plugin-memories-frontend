@@ -23,7 +23,7 @@ The plugin's UI mirrors the host plugin app shell:
 
 ```bash
 npm install
-npm run build   # writes frontend/main.js; frontend/style.css is only emitted when a component contains a <style> block (this plugin currently has none, so style.css is absent)
+npm run build   # writes frontend/main.js; frontend/style.css is emitted whenever a CSS asset survives Tailwind's purge — currently the plugin's src/tailwind.css is small enough that no rules survive, so style.css is absent
 npm run smoke   # asserts window.SporaAppMemories.mount is a function
 ```
 

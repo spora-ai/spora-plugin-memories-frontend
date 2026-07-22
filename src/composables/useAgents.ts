@@ -56,10 +56,13 @@ export function useAgents(): UseAgentsComposable {
 /**
  * Drop the cached agent list and reset the in-flight de-duplication guard.
  *
- * Production hosts MUST call this when the active user changes
- * (logout / login / user switch) — otherwise the previously-cached
- * agent list leaks across users in the same JS context. The function
- * is also used by tests via `__resetAgentsForTesting()` below.
+ * Exposed for plugin extensions and test setup. NOT currently called from
+ * the public mount contract (`window.SporaAppMemories`) — the plugin
+ * bundle has no hook into host auth-state changes, so on logout/login
+ * the cached list WILL leak across users in the same JS context. If
+ * the host SPA grows an auth-state channel, the right fix is to wire
+ * `resetAgents()` to that channel (or move agent fetching to a host
+ * Pinia store so it follows the active user automatically).
  */
 export function resetAgents(): void {
     _agents.value = []
