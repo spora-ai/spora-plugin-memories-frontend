@@ -110,12 +110,11 @@ jobs:
 
   sonarqube:
     name: SonarQube scan
-    # Runs after the test step so coverage is already generated. Mirrors the
-    # spora-frontend pattern: skip on tag pushes (SonarCloud's new-code
-    # baseline has no previous version to diff against on a ref it has
-    # never seen).
+    # Runs after both the test step (coverage generated) and the build step
+    # (artifacts verified). A failing build artifact check would otherwise
+    # let a green Sonar job cover for a broken IIFE bundle.
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: lint-and-test
+    needs: [lint-and-test, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3

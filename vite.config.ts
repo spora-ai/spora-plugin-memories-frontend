@@ -13,12 +13,15 @@ import vue from '@vitejs/plugin-vue'
  *     `registry.ts → globalFor()` in `spora-frontend`. The IIFE wrapper
  *     exposes the named export on `window.<name>`. PascalCase of the slug
  *     (`memories`) is the convention — do not use kebab-case here.
- *  3. `build.rollupOptions.external: ['vue', 'pinia', 'vue-router', 'vue-draggable-plus', 'md-editor-v3']`
- *     keeps the heavy / shared libraries out of the bundle so the host SPA's
- *     instances are shared. Sharing Pinia is what lets the plugin read
- *     auth/theme state; sharing Vue is what prevents the slot from
- *     re-creating a second app instance; sharing vue-router means the
- *     plugin's local <RouterView> resolves routes against the host router.
+ *  3. `build.rollupOptions.external: ['vue', 'pinia']` keeps Vue and Pinia
+ *     external so the host's instances are shared. Sharing Vue prevents
+ *     the slot from re-creating a second app instance; sharing Pinia lets
+ *     a future plugin extension read host stores without a separate
+ *     active-Pinia bootstrap. Everything else (vue-router, draggable,
+ *     md-editor) is bundled into the IIFE — the host SPA does NOT publish
+ *     those globals, so leaving them external would resolve to undefined
+ *     at runtime. The plugin owns its own vue-router instance via
+ *     `createMemoryHistory()` (see src/main.ts).
  *
  * `build.outDir: '.'` writes `main.js` + `style.css` directly into this
  * `frontend/` directory (one level up from `src/`) — that's the directory

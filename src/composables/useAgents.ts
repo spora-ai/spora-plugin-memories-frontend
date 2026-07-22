@@ -54,11 +54,23 @@ export function useAgents(): UseAgentsComposable {
 }
 
 /**
- * Test-only reset. Production code never calls this. Useful for
- * vitest's `beforeEach()` so the cache doesn't leak across tests.
+ * Drop the cached agent list and reset the in-flight de-duplication guard.
+ *
+ * Production hosts MUST call this when the active user changes
+ * (logout / login / user switch) — otherwise the previously-cached
+ * agent list leaks across users in the same JS context. The function
+ * is also used by tests via `__resetAgentsForTesting()` below.
  */
-export function __resetAgentsForTesting(): void {
+export function resetAgents(): void {
     _agents.value = []
     _fetched = false
     _inFlight = null
+}
+
+/**
+ * Test-only alias for `resetAgents`. Same implementation, different name
+ * to keep test cleanup visually distinct from production reset calls.
+ */
+export function __resetAgentsForTesting(): void {
+    resetAgents()
 }

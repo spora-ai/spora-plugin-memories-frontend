@@ -4,10 +4,6 @@
  *   - `api`       — the host's typed REST client. We use it directly rather
  *                   than rebuilding a copy so request/response shapes stay
  *                   in sync with the host's `/api/v1` envelope.
- *   - `pinia`     — the host's Pinia instance. Plugins may install a
- *                   *local* Pinia (for plugin-only state) but should NOT
- *                   call `setActivePinia(host.pinia)` — that would collide
- *                   with the host's stores.
  *   - `theme`     — `'light' | 'dark'` snapshot at mount time. Plugins read
  *                   this once and trust it; if the host re-themes, the slot
  *                   is unmounted and remounted, so we get a fresh value.
@@ -18,9 +14,9 @@
  *                   client-side navigation call `router.push(...)`.
  *
  * Anything else (auth, runtime config, etc.) is reachable via the host's
- * Pinia stores — use `useSomeHostStore(host.pinia)` rather than reaching
- * for `useSomeHostStore()` directly, which would attach to whatever Pinia
- * is currently active in the slot.
+ * Pinia stores — install a local Pinia in the plugin rather than reaching
+ * for the host's, since plugin-local Pinias are isolated from the host's
+ * active-Pinia context.
  */
 export interface PluginHostContext {
     /**
@@ -38,7 +34,6 @@ export interface PluginHostContext {
         patch: <T = unknown>(path: string, body: unknown) => Promise<T>
         delete: <T = unknown>(path: string) => Promise<T>
     }
-    pinia: unknown
     theme: 'light' | 'dark'
     route: { path: string; params: Record<string, unknown>; query: Record<string, unknown> } | null
     /**
