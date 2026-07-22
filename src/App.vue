@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import MemoriesPage from './pages/MemoriesPage.vue'
-import './style.css'
+import './tailwind.css'
 </script>
 <template>
     <MemoriesPage />

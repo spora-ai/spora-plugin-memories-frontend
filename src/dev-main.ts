@@ -32,7 +32,6 @@ setApi(mockApi)
 
 const hostContext: PluginHostContext = {
     api: mockApi,
-    pinia: createPinia(),
     theme: 'light',
     route: { path: '/apps/memories', params: {}, query: {} },
     router: {

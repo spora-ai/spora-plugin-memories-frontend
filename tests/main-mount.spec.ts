@@ -42,7 +42,6 @@ function makeHostContext(): PluginHostContext {
             patch: vi.fn(),
             delete: vi.fn(),
         },
-        pinia: null,
         theme: 'light',
         route: null,
         router: null,

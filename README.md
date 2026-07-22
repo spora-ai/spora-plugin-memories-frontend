@@ -14,14 +14,16 @@ The plugin's UI mirrors the host plugin app shell:
 
 - **Global memories** — memories shared across every agent. Drag-to-reorder, create/edit with a Markdown editor, delete.
 - **Agent memories** — per-agent memory lists. The sidebar exposes a dropdown to flip between agents; the page shows the same CRUD + reorder affordances scoped to the selected agent.
-- **Markdown editor** — each memory's content body uses the plugin-bundled `md-editor-v3` editor.
+- **Markdown editor** — each memory's content body uses `md-editor-v3`.
 - **Drag-to-reorder** — `vue-draggable-plus` drives the list ordering UI; reorder mutations PATCH back to the backend.
+
+`md-editor-v3` and `vue-draggable-plus` are **bundled into `frontend/main.js`** rather than loaded from the host — the host SPA only publishes `window.Vue` and `window.Pinia`. Don't import them separately from the host; the IIFE wrapper would silently conflict.
 
 ## Build
 
 ```bash
 npm install
-npm run build   # writes frontend/main.js + frontend/style.css
+npm run build   # writes frontend/main.js; frontend/style.css is emitted whenever a CSS asset survives Tailwind's purge — currently the plugin's src/tailwind.css is small enough that no rules survive, so style.css is absent
 npm run smoke   # asserts window.SporaAppMemories.mount is a function
 ```
 

@@ -77,6 +77,17 @@ const FIXTURE: MemoryResource[] = [
         created_at: new Date(Date.now() - 3600000).toISOString(),
         updated_at: new Date(Date.now() - 3600000).toISOString(),
     },
+    {
+        id: 6,
+        user_id: 42,
+        agent_id: 8,
+        name: 'triage_checklist',
+        summary: 'Steps the triage agent follows on every page',
+        content: '1. Read the request\n2. Decide severity\n3. Reply or escalate',
+        order: 0,
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        updated_at: new Date(Date.now() - 7200000).toISOString(),
+    },
 ]
 
 const AGENTS: AgentSummary[] = [

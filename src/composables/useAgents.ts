@@ -54,11 +54,26 @@ export function useAgents(): UseAgentsComposable {
 }
 
 /**
- * Test-only reset. Production code never calls this. Useful for
- * vitest's `beforeEach()` so the cache doesn't leak across tests.
+ * Drop the cached agent list and reset the in-flight de-duplication guard.
+ *
+ * Exposed for plugin extensions and test setup. NOT currently called from
+ * the public mount contract (`window.SporaAppMemories`) — the plugin
+ * bundle has no hook into host auth-state changes, so on logout/login
+ * the cached list WILL leak across users in the same JS context. If
+ * the host SPA grows an auth-state channel, the right fix is to wire
+ * `resetAgents()` to that channel (or move agent fetching to a host
+ * Pinia store so it follows the active user automatically).
  */
-export function __resetAgentsForTesting(): void {
+export function resetAgents(): void {
     _agents.value = []
     _fetched = false
     _inFlight = null
+}
+
+/**
+ * Test-only alias for `resetAgents`. Same implementation, different name
+ * to keep test cleanup visually distinct from production reset calls.
+ */
+export function __resetAgentsForTesting(): void {
+    resetAgents()
 }

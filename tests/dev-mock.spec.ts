@@ -154,6 +154,25 @@ describe('createMockApi', () => {
             expect(after.memories.map((m) => m.id)).toEqual(ids)
         })
 
+        it('preserves other agents\' memories byte-for-byte when reordering agent 7', async () => {
+            // Pick a second agent distinct from 7 if any.
+            const otherAgentIds = Array.from(
+                new Set(FIXTURE_AGENT.map((m) => m.agent_id)),
+            ).filter((id) => id !== 7);
+            expect(otherAgentIds.length).toBeGreaterThan(0);
+
+            const otherId = otherAgentIds[0]!;
+            const before = await api.get<{ memories: Array<Record<string, unknown>> }>(`/agents/${otherId}/memories`);
+
+            // Mutate agent 7 order.
+            const agent7Before = await api.get<{ memories: Array<{ id: number }> }>('/agents/7/memories');
+            await api.patch('/agents/7/memories/reorder', { order: agent7Before.memories.map((m) => m.id).reverse() });
+
+            // Other agent's memories must come back unchanged.
+            const after = await api.get<{ memories: Array<Record<string, unknown>> }>(`/agents/${otherId}/memories`);
+            expect(after.memories).toEqual(before.memories);
+        })
+
         it('throws when PATCHing an unknown path', async () => {
             await expect(api.patch('/nope', { order: [] })).rejects.toThrow('Mock API has no handler for PATCH /nope')
         })

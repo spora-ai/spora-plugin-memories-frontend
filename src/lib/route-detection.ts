@@ -26,6 +26,14 @@
  *                              param is preserved for the page's
  *                              `applyQueryParams()` to detect)
  */
+// Three different "memories" path prefixes coexist in this plugin:
+//   1. `/apps/memories`      — the host's URL prefix (this file).
+//   2. `/plugins/memories/`  — the installer's source dir and Vite
+//                              dev-server base (see vite.config.ts).
+//   3. `/api/v1/memories`    — the backend's REST root
+//                              (spora-plugin-memories, MemoriesPlugin::routes).
+// This module only handles (1). Don't use it to parse the API or
+// the installer/dev paths — those have their own helpers.
 const PLUGIN_PREFIX = '/apps/memories'
 
 export interface PluginRouteMatch {
