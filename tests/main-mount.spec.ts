@@ -6,8 +6,8 @@
  * the host's `apps/registry.ts` to call. We test the contract end-to-
  * end against a fake DOM target — verifying:
  *
- *   1. `mount()` actually creates a Vue app and renders the plugin's
- *      root component (`<MemoriesPage />`) into the target.
+ *   1. `mount()` creates a Vue app and renders the plugin's CSS scope
+ *      root, containing `<MemoriesPage />`, into the target.
  *   2. The plugin's API bridge receives the host's typed REST client
  *      so descendants (`getApi()`) resolve at runtime, not just at
  *      compile time.
@@ -83,10 +83,10 @@ describe('SporaApp (main.ts mount contract)', () => {
         const target = makeTarget()
         const hostContext = makeHostContext()
         await main.default.mount(target, hostContext)
-        // `<MemoriesPage />` is the template's root — it renders the
-        // sidebar + main outlet. After flushPromises the DOM should
-        // contain the `<main>` outlet we asserted on in the page spec.
+        // App.vue provides the CSS scope root around the sidebar + main outlet.
+        // After the initial promises settle, both contracts must be present.
         await new Promise((r) => setTimeout(r, 0))
+        expect(target.querySelector('#spora-plugin-memories')).not.toBeNull()
         expect(target.querySelector('main')).not.toBeNull()
     })
 
