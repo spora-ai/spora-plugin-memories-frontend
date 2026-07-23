@@ -6,8 +6,8 @@
  * the host's `apps/registry.ts` to call. We test the contract end-to-
  * end against a fake DOM target — verifying:
  *
- *   1. `mount()` actually creates a Vue app and renders the plugin's
- *      root component (`<MemoriesPage />`) into the target.
+ *   1. `mount()` creates a Vue app and renders the plugin's CSS scope
+ *      root, containing `<MemoriesPage />`, into the target.
  *   2. The plugin's API bridge receives the host's typed REST client
  *      so descendants (`getApi()`) resolve at runtime, not just at
  *      compile time.
