@@ -83,10 +83,10 @@ describe('SporaApp (main.ts mount contract)', () => {
         const target = makeTarget()
         const hostContext = makeHostContext()
         await main.default.mount(target, hostContext)
-        // `<MemoriesPage />` is the template's root — it renders the
-        // sidebar + main outlet. After flushPromises the DOM should
-        // contain the `<main>` outlet we asserted on in the page spec.
+        // App.vue provides the CSS scope root around the sidebar + main outlet.
+        // After the initial promises settle, both contracts must be present.
         await new Promise((r) => setTimeout(r, 0))
+        expect(target.querySelector('#spora-plugin-memories')).not.toBeNull()
         expect(target.querySelector('main')).not.toBeNull()
     })
 

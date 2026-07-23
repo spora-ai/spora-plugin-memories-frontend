@@ -62,5 +62,7 @@ defineExpose({ router, hostContext: props.hostContext })
 </script>
 
 <template>
-    <MemoriesPage />
+    <div id="spora-plugin-memories">
+        <MemoriesPage />
+    </div>
 </template>
