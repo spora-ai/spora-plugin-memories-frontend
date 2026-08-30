@@ -1,51 +1,51 @@
 {
-    "name": "spora-ai/spora-plugin-memories-frontend",
-    "description": "Pre-built Vue SPA for the Spora memories admin panel. Delivered as type `spora-plugin-frontend`; the host SPA lazy-loads it via /plugins/spora-plugin-memories-frontend/main.js.",
-    "type": "spora-plugin-frontend",
-    "license": "MIT",
-    "require": {
-        "php": "^8.4.1"
-    },
-    "dist": {
-        "url": "https://github.com/spora-ai/spora-plugin-memories-frontend/releases/download/v0.1.1/spora-plugin-memories-frontend-v0.1.1.tar.gz",
-        "type": "tar"
-    },
-    "extra": {
-        "_comment": "Must equal plugin.json#slug in spora-plugin-memories; SporaPluginFrontendInstaller refuses to install when missing.",
-        "spora-plugin-slug": "memories"
-    },
-    "archive": {
-        "exclude": [
-            "/.github",
-            "/node_modules",
-            "/src",
-            "/tests",
-            "/coverage",
-            "/scripts",
-            "/.git",
-            "/.gitkeep",
-            "/.gitignore",
-            "/.DS_Store",
-            "/package-lock.json",
-            "/package.json",
-            "/eslint.config.js",
-            "/postcss.config.js",
-            "/tailwind.config.ts",
-            "/tsconfig.json",
-            "/vite.config.ts",
-            "/index.html",
-            "/sonar-project.properties",
-            "/README.md",
-            "/RELEASING.md"
-        ]
-    },
-    "config": {
-        "optimize-autoloader": true,
-        "sort-packages": true,
-        "allow-plugins": {
-            "spora-ai/installer": true
-        }
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true
+  "name": "spora-ai/spora-plugin-memories-frontend",
+  "description": "Pre-built Vue SPA for the Spora memories admin panel. Delivered as type `spora-plugin-frontend`; the host SPA lazy-loads it via /plugins/spora-plugin-memories-frontend/main.js.",
+  "type": "spora-plugin-frontend",
+  "license": "MIT",
+  "require": {
+    "php": "^8.4.1"
+  },
+  "dist": {
+    "url": "https://github.com/spora-ai/spora-plugin-memories-frontend/releases/download/v0.1.2/spora-plugin-memories-frontend-v0.1.2.tar.gz",
+    "type": "tar"
+  },
+  "extra": {
+    "_comment": "Must equal plugin.json#slug in spora-plugin-memories; SporaPluginFrontendInstaller refuses to install when missing.",
+    "spora-plugin-slug": "memories"
+  },
+  "archive": {
+    "exclude": [
+      "/.github",
+      "/node_modules",
+      "/src",
+      "/tests",
+      "/coverage",
+      "/scripts",
+      "/.git",
+      "/.gitkeep",
+      "/.gitignore",
+      "/.DS_Store",
+      "/package-lock.json",
+      "/package.json",
+      "/eslint.config.js",
+      "/postcss.config.js",
+      "/tailwind.config.ts",
+      "/tsconfig.json",
+      "/vite.config.ts",
+      "/index.html",
+      "/sonar-project.properties",
+      "/README.md",
+      "/RELEASING.md"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "allow-plugins": {
+      "spora-ai/installer": true
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
 }
