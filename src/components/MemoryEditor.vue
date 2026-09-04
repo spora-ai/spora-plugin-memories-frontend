@@ -35,7 +35,17 @@ import type { PluginHostContext } from '../shims'
  * the form's mode (full save vs surgical edit).
  */
 
-const MEMORY_EDITOR_TOOLBARS: Array<'bold' | 'underline' | 'italic' | 'strikeThrough' | '-' | 'title' | 'sub' | 'sup' | 'quote' | '-' | 'unorderedList' | 'orderedList' | 'task' | '-' | 'code' | 'codeRow' | 'link' | 'image' | 'table' | '-' | 'preview' | 'pageFullscreen' | 'catalog' | 'fullscreen'> = [
+// Hoisted to a named alias so the `'-'` separator is declared once instead of
+// inlined four times in the literal union (typescript:S4621).
+type MemoryEditorToolbarItem =
+    | 'bold' | 'underline' | 'italic' | 'strikeThrough'
+    | 'title' | 'sub' | 'sup' | 'quote'
+    | 'unorderedList' | 'orderedList' | 'task'
+    | 'code' | 'codeRow' | 'link' | 'image' | 'table'
+    | 'preview' | 'pageFullscreen' | 'catalog' | 'fullscreen'
+    | '-'
+
+const MEMORY_EDITOR_TOOLBARS: MemoryEditorToolbarItem[] = [
     'bold', 'underline', 'italic', 'strikeThrough',
     '-',
     'title', 'sub', 'sup', 'quote',

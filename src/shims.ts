@@ -4,6 +4,8 @@
  * reach the host's `openMediaPicker` and other host-only contracts
  * without prop-drilling.
  */
+import type { MediaAsset, MediaPickerOptions } from './types'
+
 export const HOST_CONTEXT_KEY: import('vue').InjectionKey<PluginHostContext> = Symbol('spora-memories-host-context') as unknown as import('vue').InjectionKey<PluginHostContext>
 
 /**
@@ -78,22 +80,6 @@ export interface PluginHostContext {
     openMediaPicker?: (options?: MediaPickerOptions) => Promise<MediaAsset[]>
 }
 
-export interface MediaPickerOptions {
-    multi?: boolean
-    mediaKind?: 'image' | 'image+document'
-    title?: string
-}
-
-export interface MediaAsset {
-    id: string
-    filename: string | null
-    media_type: string | null
-    mime_type: string | null
-    byte_size: number | null
-    asset_url: string | null
-    has_markdown: boolean
-}
-
 declare global {
     interface Window {
         SporaAppMemories?: {
@@ -102,5 +88,3 @@ declare global {
         }
     }
 }
-
-export {}
