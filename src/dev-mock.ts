@@ -16,6 +16,8 @@ import type { PluginHostContext } from './shims'
 
 let nextId = 100
 
+const CURRENT_USER_ID = 42
+
 function makeId(): string {
     nextId++
     // Hex-shaped UUIDv7 stand-in; the real backend uses
@@ -29,6 +31,113 @@ function makeId(): string {
 function uid(seed: number): string {
     const hex = seed.toString(16).padStart(12, '0')
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${seed.toString(16).padStart(3, '0').slice(-3)}-b012-${hex}${hex}`.slice(0, 36)
+}
+
+const VALID_MEMORY_TYPES: MemoryType[] = ['plan', 'documentation', 'examples', 'context']
+
+/**
+ * Coerce an unknown `?type=` query value into a known `MemoryType`,
+ * falling back to `'context'` for unknown / missing values. Hoisted to
+ * module scope so it isn't reallocated per `createMockApi()` call
+ * (typescript:S7721).
+ */
+function matchType(memoryType: string | undefined): MemoryType {
+    return memoryType !== undefined && (VALID_MEMORY_TYPES as string[]).includes(memoryType)
+        ? memoryType as MemoryType
+        : 'context'
+}
+
+interface ReplaceableBody {
+    name?: string
+    type?: MemoryType
+    summary?: string
+    content?: string
+    find?: string
+    new_text?: string
+}
+
+/**
+ * `null` → path matched but no `?type=` filter supplied.
+ * `undefined` → path did not match the route, dispatcher should
+ *                fall through to the next candidate.
+ */
+function parseGlobalListQuery(path: string): { type: MemoryType | null } | undefined {
+    const match = /^\/memories(?:\?type=([^&]+))?$/.exec(path)
+    if (!match) return undefined
+    const rawType = match[1] !== undefined ? decodeURIComponent(match[1]) : undefined
+    return { type: rawType === undefined ? null : matchType(rawType) }
+}
+
+function parseGlobalMemoryId(path: string): string | undefined {
+    const match = /^\/memories\/([^/]+)$/.exec(path)
+    if (!match) return undefined
+    return match[1] ?? ''
+}
+
+function parseAgentListQuery(path: string): { agentId: number; type: MemoryType | null } | undefined {
+    const match = /^\/agents\/(\d+)\/memories(?:\?type=([^&]+))?$/.exec(path)
+    if (!match) return undefined
+    const agentId = Number(match[1])
+    const rawType = match[2] !== undefined ? decodeURIComponent(match[2]) : undefined
+    return { agentId, type: rawType === undefined ? null : matchType(rawType) }
+}
+
+function parseAgentMemoryPath(path: string): { agentId: number; memoryId: string } | undefined {
+    const match = /^\/agents\/(\d+)\/memories\/([^/]+)$/.exec(path)
+    if (!match) return undefined
+    return { agentId: Number(match[1]), memoryId: match[2] ?? '' }
+}
+
+function parseGlobalReplacePath(path: string): string | undefined {
+    const match = /^\/memories\/([^/]+)\/replace$/.exec(path)
+    if (!match) return undefined
+    return match[1] ?? ''
+}
+
+function parseCreateAgentMemoryPath(path: string): number | undefined {
+    const match = /^\/agents\/(\d+)\/memories$/.exec(path)
+    if (!match) return undefined
+    return Number(match[1])
+}
+
+function parseAgentReplacePath(path: string): { agentId: number; memoryId: string } | undefined {
+    const match = /^\/agents\/(\d+)\/memories\/([^/]+)\/replace$/.exec(path)
+    if (!match) return undefined
+    return { agentId: Number(match[1]), memoryId: match[2] ?? '' }
+}
+
+function buildMemory(
+    input: ReplaceableBody,
+    scope: 'global' | 'agent',
+    agentId: number | null,
+    order: number,
+): MemoryResource {
+    return {
+        id: makeId(),
+        principal_id: CURRENT_USER_ID,
+        agent_id: scope === 'agent' ? agentId : null,
+        scope,
+        type: input.type ?? 'context',
+        name: input.name ?? 'untitled',
+        summary: input.summary ?? null,
+        content: input.content ?? null,
+        order,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    }
+}
+
+/**
+ * Apply a surgical replace on `current`, throwing on missing or
+ * ambiguous anchors. Centralised so the global and agent replace
+ * branches share the exact-match contract.
+ */
+function applyReplace(input: ReplaceableBody, current: string): string {
+    const anchor = input.find ?? ''
+    const occurrences = anchor !== '' ? current.split(anchor).length - 1 : 0
+    if (occurrences === 0) throw new Error('find matches 0 occurrences.')
+    if (occurrences > 1) throw new Error(`find matches ${occurrences} occurrences; provide a unique substring.`)
+    return current.replace(anchor, input.new_text ?? '')
 }
 
 function fixtures(): MemoryResource[] {
@@ -107,8 +216,6 @@ const AGENTS: AgentSummary[] = [
     { id: 9, name: 'Release Manager' },
 ]
 
-export const CURRENT_USER_ID = 42
-
 export function createMockApi(): PluginHostContext['api'] {
     let memories = fixtures()
 
@@ -122,154 +229,89 @@ export function createMockApi(): PluginHostContext['api'] {
             .filter((m) => type === undefined || m.type === type)
     }
 
-    function matchType(memoryType: string | undefined): MemoryType {
-        const valid: MemoryType[] = ['plan', 'documentation', 'examples', 'context']
-        if (memoryType && (valid as string[]).includes(memoryType)) return memoryType as MemoryType
-        return 'context'
+    function findById(id: string): MemoryResource {
+        const found = memories.find((m) => m.id === id)
+        if (!found) throw new Error(`Not found: ${id}`)
+        return found
+    }
+
+    function replaceMemoryContent(idx: number, input: ReplaceableBody): void {
+        const current = memories[idx]?.content ?? ''
+        const content = applyReplace(input, current)
+        memories[idx] = {
+            ...memories[idx]!,
+            content,
+            updated_at: new Date().toISOString(),
+        }
     }
 
     return {
         async get<T>(path: string): Promise<T> {
-            // /agents — used by useAgents composable
             if (path === '/agents') {
                 return { agents: AGENTS } as unknown as T
             }
-            // /principals/me — used by usePrincipalsStore
             if (path === '/principals/me') {
                 return {
                     principals: [
-                        { id: 42, type: 'user', name: `User #${CURRENT_USER_ID}`, user_id: CURRENT_USER_ID, group_id: null },
+                        { id: CURRENT_USER_ID, type: 'user', name: `User #${CURRENT_USER_ID}`, user_id: CURRENT_USER_ID, group_id: null },
                     ],
                 } as unknown as T
             }
-            // /memories?type=…
-            const globalMatch = /^\/memories(?:\?type=([^&]+))?$/.exec(path)
-            if (globalMatch) {
-                const rawType = globalMatch[1] !== undefined ? decodeURIComponent(globalMatch[1]) : undefined
-                const t = rawType === undefined ? undefined : matchType(rawType)
-                return { memories: listGlobal(t) } as unknown as T
+            const globalList = parseGlobalListQuery(path)
+            if (globalList !== undefined) {
+                return { memories: listGlobal(globalList.type ?? undefined) } as unknown as T
             }
-            // /memories/:id
-            const globalById = /^\/memories\/([^/]+)$/.exec(path)
-            if (globalById) {
-                const id = globalById[1] ?? ''
-                const found = memories.find((m) => m.id === id)
-                if (!found) throw new Error(`Not found: ${id}`)
-                return { memory: found } as unknown as T
+            const globalId = parseGlobalMemoryId(path)
+            if (globalId !== undefined) {
+                return { memory: findById(globalId) } as unknown as T
             }
-            // /agents/:id/memories?type=…
-            const agentListMatch = /^\/agents\/(\d+)\/memories(?:\?type=([^&]+))?$/.exec(path)
-            if (agentListMatch) {
-                const agentId = Number(agentListMatch[1])
-                const rawType = agentListMatch[2] !== undefined ? decodeURIComponent(agentListMatch[2]) : undefined
-                const t = rawType === undefined ? undefined : matchType(rawType)
-                return { memories: listAgent(agentId, t) } as unknown as T
+            const agentList = parseAgentListQuery(path)
+            if (agentList !== undefined) {
+                return { memories: listAgent(agentList.agentId, agentList.type ?? undefined) } as unknown as T
             }
-            // /agents/:id/memories/:memoryId
-            const agentOne = /^\/agents\/(\d+)\/memories\/([^/]+)$/.exec(path)
-            if (agentOne) {
-                const memoryId = agentOne[2] ?? ''
-                const found = memories.find((m) => m.id === memoryId)
-                if (!found) throw new Error(`Not found: ${memoryId}`)
-                return { memory: found } as unknown as T
+            const agentMemory = parseAgentMemoryPath(path)
+            if (agentMemory !== undefined) {
+                return { memory: findById(agentMemory.memoryId) } as unknown as T
             }
             throw new Error(`Mock API has no handler for ${path}`)
         },
 
         async post<T>(path: string, body: unknown): Promise<T> {
-            const input = (body ?? {}) as {
-                name?: string
-                type?: MemoryType
-                summary?: string
-                content?: string
-                find?: string
-                new_text?: string
-            }
-            // /memories
+            const input = (body ?? {}) as ReplaceableBody
             if (path === '/memories') {
-                const memory: MemoryResource = {
-                    id: makeId(),
-                    principal_id: CURRENT_USER_ID,
-                    agent_id: null,
-                    scope: 'global',
-                    type: input.type ?? 'context',
-                    name: input.name ?? 'untitled',
-                    summary: input.summary ?? null,
-                    content: input.content ?? null,
-                    order: listGlobal().length,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                }
+                const memory = buildMemory(input, 'global', null, listGlobal().length)
                 memories.push(memory)
                 return { memory } as unknown as T
             }
-            // /memories/:id/replace
-            const replaceGlobal = /^\/memories\/([^/]+)\/replace$/.exec(path)
-            if (replaceGlobal) {
-                const id = replaceGlobal[1] ?? ''
-                const idx = memories.findIndex((m) => m.id === id && m.scope === 'global')
-                if (idx === -1) throw new Error(`Not found: ${id}`)
-                const current = memories[idx]?.content ?? ''
-                const occurrences = input.find ? current.split(input.find).length - 1 : 0
-                if (occurrences === 0) throw new Error('find matches 0 occurrences.')
-                if (occurrences > 1) throw new Error(`find matches ${occurrences} occurrences; provide a unique substring.`)
-                const updated: MemoryResource = {
-                    ...memories[idx]!,
-                    content: current.replace(input.find ?? '', input.new_text ?? ''),
-                    updated_at: new Date().toISOString(),
-                }
-                memories[idx] = updated
-                return { memory: updated } as unknown as T
+            const replaceGlobalId = parseGlobalReplacePath(path)
+            if (replaceGlobalId !== undefined) {
+                const idx = memories.findIndex((m) => m.id === replaceGlobalId && m.scope === 'global')
+                if (idx === -1) throw new Error(`Not found: ${replaceGlobalId}`)
+                replaceMemoryContent(idx, input)
+                return { memory: memories[idx] } as unknown as T
             }
-            // /agents/:id/memories
-            const agentList = /^\/agents\/(\d+)\/memories$/.exec(path)
-            if (agentList) {
-                const agentId = Number(agentList[1])
-                const memory: MemoryResource = {
-                    id: makeId(),
-                    principal_id: CURRENT_USER_ID,
-                    agent_id: agentId,
-                    scope: 'agent',
-                    type: input.type ?? 'context',
-                    name: input.name ?? 'untitled',
-                    summary: input.summary ?? null,
-                    content: input.content ?? null,
-                    order: listAgent(agentId).length,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                }
+            const createAgentId = parseCreateAgentMemoryPath(path)
+            if (createAgentId !== undefined) {
+                const memory = buildMemory(input, 'agent', createAgentId, listAgent(createAgentId).length)
                 memories.push(memory)
                 return { memory } as unknown as T
             }
-            // /agents/:id/memories/:memoryId/replace
-            const replaceAgent = /^\/agents\/(\d+)\/memories\/([^/]+)\/replace$/.exec(path)
-            if (replaceAgent) {
-                const memoryId = replaceAgent[2] ?? ''
-                const idx = memories.findIndex((m) => m.id === memoryId && m.scope === 'agent')
-                if (idx === -1) throw new Error(`Not found: ${memoryId}`)
-                const current = memories[idx]?.content ?? ''
-                const occurrences = input.find ? current.split(input.find).length - 1 : 0
-                if (occurrences === 0) throw new Error('find matches 0 occurrences.')
-                if (occurrences > 1) throw new Error(`find matches ${occurrences} occurrences; provide a unique substring.`)
-                const updated: MemoryResource = {
-                    ...memories[idx]!,
-                    content: current.replace(input.find ?? '', input.new_text ?? ''),
-                    updated_at: new Date().toISOString(),
-                }
-                memories[idx] = updated
-                return { memory: updated } as unknown as T
+            const replaceAgent = parseAgentReplacePath(path)
+            if (replaceAgent !== undefined) {
+                const idx = memories.findIndex((m) => m.id === replaceAgent.memoryId && m.scope === 'agent')
+                if (idx === -1) throw new Error(`Not found: ${replaceAgent.memoryId}`)
+                replaceMemoryContent(idx, input)
+                return { memory: memories[idx] } as unknown as T
             }
             throw new Error(`Mock API has no handler for POST ${path}`)
         },
 
         async put<T>(path: string, body: unknown): Promise<T> {
             const input = (body ?? {}) as Partial<MemoryResource>
-            // /memories/:id
-            const globalById = /^\/memories\/([^/]+)$/.exec(path)
-            if (globalById) {
-                const id = globalById[1] ?? ''
-                const idx = memories.findIndex((m) => m.id === id && m.scope === 'global')
-                if (idx === -1) throw new Error(`Not found: ${id}`)
+            const globalId = parseGlobalMemoryId(path)
+            if (globalId !== undefined) {
+                const idx = memories.findIndex((m) => m.id === globalId && m.scope === 'global')
+                if (idx === -1) throw new Error(`Not found: ${globalId}`)
                 memories[idx] = {
                     ...memories[idx]!,
                     ...input,
@@ -277,12 +319,10 @@ export function createMockApi(): PluginHostContext['api'] {
                 }
                 return { memory: memories[idx] } as unknown as T
             }
-            // /agents/:id/memories/:memoryId
-            const agentOne = /^\/agents\/(\d+)\/memories\/([^/]+)$/.exec(path)
-            if (agentOne) {
-                const memoryId = agentOne[2] ?? ''
-                const idx = memories.findIndex((m) => m.id === memoryId && m.scope === 'agent')
-                if (idx === -1) throw new Error(`Not found: ${memoryId}`)
+            const agentMemory = parseAgentMemoryPath(path)
+            if (agentMemory !== undefined) {
+                const idx = memories.findIndex((m) => m.id === agentMemory.memoryId && m.scope === 'agent')
+                if (idx === -1) throw new Error(`Not found: ${agentMemory.memoryId}`)
                 memories[idx] = {
                     ...memories[idx]!,
                     ...input,
@@ -295,7 +335,6 @@ export function createMockApi(): PluginHostContext['api'] {
 
         async patch<T>(path: string, body: unknown): Promise<T> {
             const input = (body ?? {}) as { order?: string[] }
-            // /memories/reorder
             if (path === '/memories/reorder' && Array.isArray(input.order)) {
                 const ordered = input.order
                     .map((id) => memories.find((m) => m.id === id && m.scope === 'global'))
@@ -304,7 +343,6 @@ export function createMockApi(): PluginHostContext['api'] {
                 memories = [...others, ...ordered]
                 return undefined as unknown as T
             }
-            // /agents/:id/memories/reorder
             const agentReorder = /^\/agents\/(\d+)\/memories\/reorder$/.exec(path)
             if (agentReorder && Array.isArray(input.order)) {
                 const agentId = Number(agentReorder[1])
@@ -322,18 +360,14 @@ export function createMockApi(): PluginHostContext['api'] {
         },
 
         async delete<T>(path: string): Promise<T> {
-            // /memories/:id
-            const globalById = /^\/memories\/([^/]+)$/.exec(path)
-            if (globalById) {
-                const id = globalById[1] ?? ''
-                memories = memories.filter((m) => m.id !== id)
+            const globalId = parseGlobalMemoryId(path)
+            if (globalId !== undefined) {
+                memories = memories.filter((m) => m.id !== globalId)
                 return undefined as unknown as T
             }
-            // /agents/:id/memories/:memoryId
-            const agentOne = /^\/agents\/(\d+)\/memories\/([^/]+)$/.exec(path)
-            if (agentOne) {
-                const memoryId = agentOne[2] ?? ''
-                memories = memories.filter((m) => m.id !== memoryId)
+            const agentMemory = parseAgentMemoryPath(path)
+            if (agentMemory !== undefined) {
+                memories = memories.filter((m) => m.id !== agentMemory.memoryId)
                 return undefined as unknown as T
             }
             throw new Error(`Mock API has no handler for DELETE ${path}`)
