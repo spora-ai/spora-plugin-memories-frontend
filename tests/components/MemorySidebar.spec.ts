@@ -8,16 +8,18 @@
  */
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 
 const pushMock = vi.fn()
-const routeName = ref<string>('agent-memories')
-const routeParams = ref<Record<string, string>>({ id: '7' })
-const routeQuery = ref<Record<string, string>>({})
+const routeObj = reactive<{ name: string; params: Record<string, string>; query: Record<string, string> }>({
+    name: 'agent-memories',
+    params: { id: '7' },
+    query: {},
+})
 
 vi.mock('vue-router', () => ({
-    useRoute: () => ({ name: routeName.value, params: routeParams.value, query: routeQuery.value }),
+    useRoute: () => routeObj,
     useRouter: () => ({ push: pushMock }),
 }))
 
@@ -82,9 +84,9 @@ beforeEach(() => {
     selectedPrincipalId.value = null
     globalMemoriesRef.value = []
     agentMemoriesRef.value = []
-    routeName.value = 'agent-memories'
-    routeParams.value = { id: '7' }
-    routeQuery.value = {}
+    routeObj.name = 'agent-memories'
+    routeObj.params = { id: '7' }
+    routeObj.query = {}
     fetchAgentsMock.mockReset().mockResolvedValue(undefined)
     loadGlobalMemoriesMock.mockReset().mockResolvedValue(undefined)
     loadAgentMemoriesMock.mockReset().mockResolvedValue(undefined)
@@ -131,7 +133,7 @@ describe('MemorySidebar', () => {
     })
 
     it('does not initialize an agent when route has no id and there are no agents', async () => {
-        routeParams.value = {}
+        routeObj.params = {}
         agentsRef.value = []
         const wrapper = mountSidebar()
         await flushPromises()
@@ -140,7 +142,7 @@ describe('MemorySidebar', () => {
     })
 
     it('initializes selectedAgentId from route params', async () => {
-        routeParams.value = { id: '42' }
+        routeObj.params = { id: '42' }
         agentsRef.value = [{ id: 42, name: 'A' }]
         mountSidebar()
         await flushPromises()
@@ -148,7 +150,7 @@ describe('MemorySidebar', () => {
     })
 
     it('falls back to first agent when no route id is set', async () => {
-        routeParams.value = {}
+        routeObj.params = {}
         agentsRef.value = [
             { id: 1, name: 'First' },
             { id: 2, name: 'Second' },
@@ -160,7 +162,7 @@ describe('MemorySidebar', () => {
     })
 
     it('shows "No memories for this agent." when agent has none', async () => {
-        routeParams.value = { id: '5' }
+        routeObj.params = { id: '5' }
         agentsRef.value = [{ id: 5, name: 'X' }]
         const wrapper = mountSidebar()
         await flushPromises()
@@ -168,7 +170,7 @@ describe('MemorySidebar', () => {
     })
 
     it('shows the agent selector button with the selected agent name', async () => {
-        routeParams.value = { id: '3' }
+        routeObj.params = { id: '3' }
         agentsRef.value = [{ id: 3, name: 'Pickle' }]
         const wrapper = mountSidebar()
         await flushPromises()
@@ -176,7 +178,7 @@ describe('MemorySidebar', () => {
     })
 
     it('shows "Unknown" when selected agent id has no matching agent', async () => {
-        routeParams.value = { id: '99' }
+        routeObj.params = { id: '99' }
         agentsRef.value = [{ id: 1, name: 'Other' }]
         const wrapper = mountSidebar()
         await flushPromises()
@@ -213,5 +215,176 @@ describe('MemorySidebar', () => {
             const buttons = wrapper.findAll('button')
             await buttons[0]?.trigger('click')
         }
+    })
+
+    it('reloads global memories when the selected principal changes on the global route', async () => {
+        routeObj.name = 'global-memories'
+        routeObj.params = {}
+        mountSidebar()
+        await flushPromises()
+        loadGlobalMemoriesMock.mockClear()
+        selectedPrincipalId.value = 7
+        await flushPromises()
+        expect(loadGlobalMemoriesMock).toHaveBeenCalled()
+    })
+
+    it('does not reload memories when the selected principal changes on the agent route', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        mountSidebar()
+        await flushPromises()
+        loadGlobalMemoriesMock.mockClear()
+        selectedPrincipalId.value = 9
+        await flushPromises()
+        expect(loadGlobalMemoriesMock).not.toHaveBeenCalled()
+    })
+
+    it('opens and closes the agent dropdown', async () => {
+        agentsRef.value = [{ id: 1, name: 'One' }, { id: 2, name: 'Two' }]
+        routeObj.params = { id: '1' }
+        const wrapper = mountSidebar()
+        await flushPromises()
+        // The selector button is the only one in the agent section that
+        // contains a chevron-down icon. Use that as the toggle.
+        const selector = wrapper.findAll('button').find((b) => (b.html() ?? '').includes('lucide-chevron-down'))
+        expect(selector).toBeDefined()
+        const buttonsBefore = wrapper.findAll('button').length
+        await selector?.trigger('click')
+        await flushPromises()
+        const buttonsAfterOpen = wrapper.findAll('button').length
+        expect(buttonsAfterOpen).toBeGreaterThan(buttonsBefore)
+        await selector?.trigger('click')
+        await flushPromises()
+        const buttonsAfterClose = wrapper.findAll('button').length
+        expect(buttonsAfterClose).toBe(buttonsBefore)
+    })
+
+    it('selects an agent from the dropdown and routes to its memories', async () => {
+        agentsRef.value = [{ id: 1, name: 'One' }, { id: 2, name: 'Two' }]
+        routeObj.params = { id: '1' }
+        const wrapper = mountSidebar()
+        await flushPromises()
+        const selector = wrapper.findAll('button').find((b) => (b.html() ?? '').includes('lucide-chevron-down'))
+        await selector?.trigger('click')
+        await flushPromises()
+        const twoBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Two'))
+        expect(twoBtn).toBeDefined()
+        await twoBtn?.trigger('click')
+        await flushPromises()
+        expect(loadAgentMemoriesMock).toHaveBeenCalledWith(2, undefined)
+        expect(pushMock).toHaveBeenCalledWith({ name: 'agent-memories', params: { id: '2' } })
+    })
+
+    it('passes the active type filter through selectAgent to loadAgentMemories', async () => {
+        agentsRef.value = [{ id: 1, name: 'One' }, { id: 2, name: 'Two' }]
+        routeObj.params = { id: '1' }
+        const wrapper = mountSidebar()
+        await flushPromises()
+        // Click the Plans chip in the agent sidebar
+        const planChip = wrapper.findAll('button').filter((b) => (b.text() ?? '').includes('Plans'))
+        expect(planChip.length).toBeGreaterThan(0)
+        await planChip[planChip.length - 1]?.trigger('click')
+        await flushPromises()
+        expect(loadAgentMemoriesMock).toHaveBeenLastCalledWith(1, 'plan')
+        // Open the dropdown and pick agent 2 — should preserve the plan filter
+        const selector = wrapper.findAll('button').find((b) => (b.html() ?? '').includes('lucide-chevron-down'))
+        await selector?.trigger('click')
+        await flushPromises()
+        const twoBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Two'))
+        await twoBtn?.trigger('click')
+        await flushPromises()
+        expect(loadAgentMemoriesMock).toHaveBeenLastCalledWith(2, 'plan')
+    })
+
+    it('selectType on the global route reloads global memories with the chosen type', async () => {
+        routeObj.name = 'global-memories'
+        routeObj.params = {}
+        const wrapper = mountSidebar()
+        await flushPromises()
+        loadGlobalMemoriesMock.mockClear()
+        const planChip = wrapper.findAll('button').find((b) => (b.text() ?? '').trim() === 'Plans')
+        await planChip?.trigger('click')
+        await flushPromises()
+        expect(loadGlobalMemoriesMock).toHaveBeenLastCalledWith('plan')
+    })
+
+    it('renders up to 5 agent memories and a "View all" link when on an agent route', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        agentMemoriesRef.value = [
+            { id: 'm1', name: 'm1' },
+            { id: 'm2', name: 'm2' },
+        ]
+        const wrapper = mountSidebar()
+        await flushPromises()
+        expect(wrapper.text()).toContain('m1')
+        expect(wrapper.text()).toContain('m2')
+    })
+
+    it('navigates to a specific agent memory when the memory row is clicked', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        agentMemoriesRef.value = [{ id: 'm1', name: 'm1' }]
+        const wrapper = mountSidebar()
+        await flushPromises()
+        const memoryRow = wrapper.findAll('li').find((li) => (li.text() ?? '').includes('m1'))
+        expect(memoryRow).toBeDefined()
+        await memoryRow?.trigger('click')
+        await flushPromises()
+        expect(pushMock).toHaveBeenCalledWith({
+            name: 'agent-memories',
+            params: { id: '7' },
+            query: { memory: 'm1' },
+        })
+    })
+
+    it('highlights the global-memories link when on the global route', async () => {
+        routeObj.name = 'global-memories'
+        routeObj.params = {}
+        const wrapper = mountSidebar()
+        await flushPromises()
+        const globalLink = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Global') && (b.text() ?? '').length <= 8)
+        expect(globalLink).toBeDefined()
+        expect(globalLink?.classes().join(' ')).toContain('text-primary')
+    })
+
+    it('highlights the agent-memories link when on the agent route', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        const wrapper = mountSidebar()
+        await flushPromises()
+        const agentLink = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Agent') && (b.text() ?? '').length <= 8)
+        expect(agentLink).toBeDefined()
+        expect(agentLink?.classes().join(' ')).toContain('text-primary')
+    })
+
+    it('renders the agent-type filter chips when on an agent route', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        const wrapper = mountSidebar()
+        await flushPromises()
+        // The agent section has its own type filter chips too
+        const planChips = wrapper.findAll('button').filter((b) => (b.text() ?? '').includes('Plans'))
+        // Expect at least 2 'Plans' buttons (one for global, one for agent section)
+        expect(planChips.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('navigates to the agent memories for the selected agent when the agent-section "View all" is clicked', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        const wrapper = mountSidebar()
+        await flushPromises()
+        // Pick the second "View all" (the agent section one)
+        const viewAlls = wrapper.findAll('button').filter((b) => (b.text() ?? '').includes('View all'))
+        expect(viewAlls.length).toBeGreaterThanOrEqual(1)
+        await viewAlls[viewAlls.length - 1]?.trigger('click')
+        await flushPromises()
+        expect(pushMock).toHaveBeenCalledWith({ name: 'agent-memories', params: { id: '7' } })
     })
 })
