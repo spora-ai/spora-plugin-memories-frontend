@@ -63,7 +63,7 @@ describe('AgentMemoriesPage', () => {
             },
         })
         await flushPromises()
-        expect(loadAgentMemories).toHaveBeenCalledWith(1)
+        expect(loadAgentMemories).toHaveBeenCalledWith(1, undefined)
         expect(wrapper.exists()).toBe(true)
     })
 

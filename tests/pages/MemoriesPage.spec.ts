@@ -12,6 +12,16 @@
  */
 import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createPinia } from 'pinia'
+import { HOST_CONTEXT_KEY, type PluginHostContext } from '../../src/shims'
+
+const hostContext: PluginHostContext = {
+    api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+    pinia: createPinia(),
+    theme: 'light',
+    route: null,
+    router: null,
+}
 
 vi.mock('../../src/components/MemorySidebar.vue', () => ({
     default: {
@@ -35,17 +45,23 @@ afterEach(() => {
 
 describe('MemoriesPage', () => {
     it('renders the MemorySidebar (desktop variant)', () => {
-        const wrapper = mount(MemoriesPage)
+        const wrapper = mount(MemoriesPage, {
+            global: { provide: { [HOST_CONTEXT_KEY]: hostContext } },
+        })
         expect(wrapper.findAll('.sidebar-desktop').length).toBeGreaterThanOrEqual(1)
     })
 
     it('renders the mobile menu toggle button', () => {
-        const wrapper = mount(MemoriesPage)
+        const wrapper = mount(MemoriesPage, {
+            global: { provide: { [HOST_CONTEXT_KEY]: hostContext } },
+        })
         expect(wrapper.find('button[title="Show memories menu"]').exists()).toBe(true)
     })
 
     it('opens the mobile sidebar overlay when the menu button is clicked', async () => {
-        const wrapper = mount(MemoriesPage)
+        const wrapper = mount(MemoriesPage, {
+            global: { provide: { [HOST_CONTEXT_KEY]: hostContext } },
+        })
         expect(wrapper.findAll('.sidebar-mobile').length).toBe(0)
         const menuButton = wrapper.find('button[title="Show memories menu"]')
         expect(menuButton.exists()).toBe(true)
@@ -57,12 +73,16 @@ describe('MemoriesPage', () => {
     })
 
     it('renders the main outlet for sub-routes', () => {
-        const wrapper = mount(MemoriesPage)
+        const wrapper = mount(MemoriesPage, {
+            global: { provide: { [HOST_CONTEXT_KEY]: hostContext } },
+        })
         expect(wrapper.find('main').exists()).toBe(true)
     })
 
     it('does not render any element titled as a navbar (the navbar belongs to the host)', () => {
-        const wrapper = mount(MemoriesPage)
+        const wrapper = mount(MemoriesPage, {
+            global: { provide: { [HOST_CONTEXT_KEY]: hostContext } },
+        })
         expect(wrapper.find('.navbar-stub').exists()).toBe(false)
     })
 })

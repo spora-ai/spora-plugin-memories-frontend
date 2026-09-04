@@ -21,7 +21,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import type { PluginHostContext } from './shims'
 import { setApi } from './api/client'
-import { createMockApi } from './dev-mock'
+import { createMockApi, createMockOpenMediaPicker } from './dev-mock'
 
 // One-line banner so the developer knows they're in sandbox mode and
 // doesn't waste time wondering why their real backend isn't responding.
@@ -39,6 +39,7 @@ const hostContext: PluginHostContext = {
         push: async () => undefined,
         currentRoute: { value: { path: '/apps/memories' } },
     },
+    openMediaPicker: createMockOpenMediaPicker(),
 }
 
 const target = document.getElementById('app')

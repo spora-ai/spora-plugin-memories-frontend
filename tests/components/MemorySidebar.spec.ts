@@ -25,8 +25,8 @@ const agentsRef = ref<Array<{ id: number; name: string }>>([])
 const fetchAgentsMock = vi.fn()
 const loadGlobalMemoriesMock = vi.fn()
 const loadAgentMemoriesMock = vi.fn()
-const globalMemoriesRef = ref<Array<{ id: number; name: string }>>([])
-const agentMemoriesRef = ref<Array<{ id: number; name: string }>>([])
+const globalMemoriesRef = ref<Array<{ id: string; name: string }>>([])
+const agentMemoriesRef = ref<Array<{ id: string; name: string }>>([])
 
 vi.mock('../../src/stores/memories', () => ({
     useMemoriesStore: () => ({
@@ -35,6 +35,28 @@ vi.mock('../../src/stores/memories', () => ({
         loadGlobalMemories: loadGlobalMemoriesMock,
         loadAgentMemories: loadAgentMemoriesMock,
     }),
+}))
+
+const principalsRef = ref<Array<{ id: number; type: string; name: string }>>([])
+const selectedPrincipalId = ref<number | null>(null)
+const loadPrincipalsMock = vi.fn()
+const selectPrincipalMock = vi.fn()
+
+vi.mock('../../src/stores/principals', () => ({
+    usePrincipalsStore: () => ({
+        get principals() { return principalsRef.value },
+        get selectedPrincipalId() { return selectedPrincipalId.value },
+        loadPrincipals: loadPrincipalsMock,
+        selectPrincipal: selectPrincipalMock,
+        currentPrincipal: null,
+    }),
+}))
+
+vi.mock('../../src/components/PrincipalChipRow.vue', () => ({
+    default: {
+        name: 'PrincipalChipRow',
+        template: '<div data-testid="principal-chip-row-stub" />',
+    },
 }))
 
 vi.mock('../../src/composables/useAgents', () => ({
@@ -56,6 +78,8 @@ import MemorySidebar from '../../src/components/MemorySidebar.vue'
 beforeEach(() => {
     setActivePinia(createPinia())
     agentsRef.value = []
+    principalsRef.value = []
+    selectedPrincipalId.value = null
     globalMemoriesRef.value = []
     agentMemoriesRef.value = []
     routeName.value = 'agent-memories'
@@ -64,6 +88,8 @@ beforeEach(() => {
     fetchAgentsMock.mockReset().mockResolvedValue(undefined)
     loadGlobalMemoriesMock.mockReset().mockResolvedValue(undefined)
     loadAgentMemoriesMock.mockReset().mockResolvedValue(undefined)
+    loadPrincipalsMock.mockReset().mockResolvedValue(undefined)
+    selectPrincipalMock.mockReset()
     pushMock.mockReset()
 })
 
@@ -92,9 +118,9 @@ describe('MemorySidebar', () => {
 
     it('renders up to 5 global memories and a "View all" link', async () => {
         globalMemoriesRef.value = [
-            { id: 1, name: 'g1' },
-            { id: 2, name: 'g2' },
-            { id: 3, name: 'g3' },
+            { id: 'g1', name: 'g1' },
+            { id: 'g2', name: 'g2' },
+            { id: 'g3', name: 'g3' },
         ]
         const wrapper = mountSidebar()
         await flushPromises()
@@ -118,7 +144,7 @@ describe('MemorySidebar', () => {
         agentsRef.value = [{ id: 42, name: 'A' }]
         mountSidebar()
         await flushPromises()
-        expect(loadAgentMemoriesMock).toHaveBeenCalledWith(42)
+        expect(loadAgentMemoriesMock).toHaveBeenCalledWith(42, undefined)
     })
 
     it('falls back to first agent when no route id is set', async () => {
@@ -129,7 +155,7 @@ describe('MemorySidebar', () => {
         ]
         const wrapper = mountSidebar()
         await flushPromises()
-        expect(loadAgentMemoriesMock).toHaveBeenCalledWith(1)
+        expect(loadAgentMemoriesMock).toHaveBeenCalledWith(1, undefined)
         expect(wrapper.text()).toContain('First')
     })
 
@@ -158,7 +184,7 @@ describe('MemorySidebar', () => {
     })
 
     it('navigates to global-memories when "View all" is clicked', async () => {
-        globalMemoriesRef.value = [{ id: 1, name: 'g1' }]
+        globalMemoriesRef.value = [{ id: 'g1', name: 'g1' }]
         const wrapper = mountSidebar()
         await flushPromises()
         const viewAll = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('View all'))

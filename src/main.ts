@@ -37,6 +37,8 @@ interface MountTarget extends HTMLElement {
     __sporaApp?: { unmount: () => void; app: import('vue').App }
 }
 
+const HOST_CONTEXT_KEY = Symbol('spora-memories-host-context') as unknown as import('vue').InjectionKey<PluginHostContext>
+
 const SporaApp: MountContract = {
     mount(target: HTMLElement, hostContext: PluginHostContext): void {
         // Wire the host's typed REST client into the plugin-local
@@ -45,6 +47,12 @@ const SporaApp: MountContract = {
         setApi(hostContext.api)
 
         const app = createApp(App, { hostContext })
+
+        // Provide hostContext via Vue's inject API so `<script setup>`
+        // descendants (MemoryEditor, GlobalMemoriesPage,
+        // AgentMemoriesPage) can `inject(HOST_CONTEXT_KEY)` without
+        // prop-drilling through every layer.
+        app.provide(HOST_CONTEXT_KEY, hostContext)
 
         // Plugin-local Pinia for plugin-only state.
         app.use(createPinia())

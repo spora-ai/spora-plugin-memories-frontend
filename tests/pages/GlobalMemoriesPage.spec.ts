@@ -1,5 +1,6 @@
 /**
- * GlobalMemoriesPage — global memory CRUD with drag-to-reorder.
+ * GlobalMemoriesPage — global memory CRUD with drag-to-reorder,
+ * type-filter chips, and a principal-scope header label.
  *
  * Plug-side port of `spora-frontend/tests/apps/memories/pages/GlobalMemoriesPage.spec.ts`.
  */
@@ -14,11 +15,12 @@ vi.mock('vue-router', () => ({
     useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-const globalMemories = ref<Array<{ id: number; name: string; content: string; order: number }>>([])
+const globalMemories = ref<Array<{ id: string; name: string; content: string; order: number }>>([])
 const loadGlobalMemories = vi.fn()
 const createGlobalMemory = vi.fn()
 const updateGlobalMemory = vi.fn()
 const deleteGlobalMemory = vi.fn()
+const replaceGlobalMemory = vi.fn()
 const reorderGlobalMemories = vi.fn()
 
 vi.mock('../../src/stores/memories', () => ({
@@ -33,7 +35,20 @@ vi.mock('../../src/stores/memories', () => ({
         createGlobalMemory,
         updateGlobalMemory,
         deleteGlobalMemory,
+        replaceGlobalMemory,
         reorderGlobalMemories,
+    }),
+}))
+
+const selectedPrincipalId = ref<number | null>(null)
+const principalsLoaded = ref(false)
+vi.mock('../../src/stores/principals', () => ({
+    usePrincipalsStore: () => ({
+        principals: ref([]),
+        selectedPrincipalId: selectedPrincipalId.value,
+        loadPrincipals: vi.fn().mockResolvedValue(undefined),
+        selectPrincipal: vi.fn(),
+        currentPrincipal: null,
     }),
 }))
 
@@ -46,6 +61,8 @@ import GlobalMemoriesPage from '../../src/pages/GlobalMemoriesPage.vue'
 beforeEach(() => {
     setActivePinia(createPinia())
     globalMemories.value = []
+    selectedPrincipalId.value = null
+    principalsLoaded.value = false
     loadGlobalMemories.mockReset()
     loadGlobalMemories.mockResolvedValue(undefined)
     routeRef.value = { query: {} }

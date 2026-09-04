@@ -1,11 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ApiError } from '../api/client'
-import type { MemoryResource, CreateMemoryDto, UpdateMemoryDto } from '../types'
+import type {
+    MemoryResource,
+    MemoryType,
+    CreateMemoryDto,
+    UpdateMemoryDto,
+    ReplaceMemoryDto,
+} from '../types'
 import * as api from '../api/memories'
 
 /**
- * Manages global and agent-scoped memories with CRUD and reordering.
+ * Manages global and agent-scoped memories with CRUD, reorder, and
+ * surgical-edit operations.
  *
  * Mirrors `spora-frontend/src/apps/memories/stores/memories.ts` (the
  * host-side store this plugin replaces). The only differences:
@@ -14,6 +21,9 @@ import * as api from '../api/memories'
  *     blocks stay byte-identical.
  *   - `../api/memories` reads `getApi()` at call-time, so the store
  *     stays a Pinia setup function with no extra props to pass at mount.
+ *   - Memories are loaded with an optional `type` filter that the
+ *     controller honours via `?type=` (PR-3 wires this through the
+ *     pages and PrincipalChipRow).
  */
 export const useMemoriesStore = defineStore('memories', () => {
     // State
@@ -26,11 +36,11 @@ export const useMemoriesStore = defineStore('memories', () => {
 
     // Global memories
 
-    async function loadGlobalMemories(): Promise<void> {
+    async function loadGlobalMemories(type?: MemoryType): Promise<void> {
         loadingGlobal.value = true
         error.value = null
         try {
-            globalMemories.value = await api.getGlobalMemories()
+            globalMemories.value = await api.getGlobalMemories(type)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to load memories.'
         } finally {
@@ -53,7 +63,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function updateGlobalMemory(id: number, data: UpdateMemoryDto): Promise<MemoryResource> {
+    async function updateGlobalMemory(id: string, data: UpdateMemoryDto): Promise<MemoryResource> {
         saving.value = true
         error.value = null
         try {
@@ -69,7 +79,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function deleteGlobalMemory(id: number): Promise<void> {
+    async function deleteGlobalMemory(id: string): Promise<void> {
         saving.value = true
         error.value = null
         try {
@@ -83,13 +93,29 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
+    async function replaceGlobalMemory(id: string, data: ReplaceMemoryDto): Promise<MemoryResource> {
+        saving.value = true
+        error.value = null
+        try {
+            const memory = await api.replaceGlobalMemory(id, data)
+            const idx = globalMemories.value.findIndex((m) => m.id === id)
+            if (idx !== -1) globalMemories.value[idx] = memory
+            return memory
+        } catch (e) {
+            error.value = e instanceof ApiError ? e.message : 'Failed to replace memory.'
+            throw e
+        } finally {
+            saving.value = false
+        }
+    }
+
     // Agent memories
 
-    async function loadAgentMemories(agentId: number): Promise<void> {
+    async function loadAgentMemories(agentId: number, type?: MemoryType): Promise<void> {
         loadingAgent.value = true
         error.value = null
         try {
-            agentMemories.value = await api.getAgentMemories(agentId)
+            agentMemories.value = await api.getAgentMemories(agentId, type)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to load agent memories.'
         } finally {
@@ -112,7 +138,11 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function updateAgentMemory(agentId: number, memoryId: number, data: UpdateMemoryDto): Promise<MemoryResource> {
+    async function updateAgentMemory(
+        agentId: number,
+        memoryId: string,
+        data: UpdateMemoryDto,
+    ): Promise<MemoryResource> {
         saving.value = true
         error.value = null
         try {
@@ -128,7 +158,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function deleteAgentMemory(agentId: number, memoryId: number): Promise<void> {
+    async function deleteAgentMemory(agentId: number, memoryId: string): Promise<void> {
         saving.value = true
         error.value = null
         try {
@@ -142,7 +172,27 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function reorderGlobalMemories(orderedIds: number[]): Promise<void> {
+    async function replaceAgentMemory(
+        agentId: number,
+        memoryId: string,
+        data: ReplaceMemoryDto,
+    ): Promise<MemoryResource> {
+        saving.value = true
+        error.value = null
+        try {
+            const memory = await api.replaceAgentMemory(agentId, memoryId, data)
+            const idx = agentMemories.value.findIndex((m) => m.id === memoryId)
+            if (idx !== -1) agentMemories.value[idx] = memory
+            return memory
+        } catch (e) {
+            error.value = e instanceof ApiError ? e.message : 'Failed to replace memory.'
+            throw e
+        } finally {
+            saving.value = false
+        }
+    }
+
+    async function reorderGlobalMemories(orderedIds: string[]): Promise<void> {
         error.value = null
         try {
             await api.reorderGlobalMemories(orderedIds)
@@ -156,7 +206,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         }
     }
 
-    async function reorderAgentMemories(agentId: number, orderedIds: number[]): Promise<void> {
+    async function reorderAgentMemories(agentId: number, orderedIds: string[]): Promise<void> {
         error.value = null
         try {
             await api.reorderAgentMemories(agentId, orderedIds)
@@ -181,11 +231,13 @@ export const useMemoriesStore = defineStore('memories', () => {
         createGlobalMemory,
         updateGlobalMemory,
         deleteGlobalMemory,
+        replaceGlobalMemory,
         reorderGlobalMemories,
         loadAgentMemories,
         createAgentMemory,
         updateAgentMemory,
         deleteAgentMemory,
+        replaceAgentMemory,
         reorderAgentMemories,
     }
 })

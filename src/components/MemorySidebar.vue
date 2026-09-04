@@ -1,29 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Brain, Globe, Bot, ChevronDown, X, ChevronRight } from 'lucide-vue-next'
 import { useMemoriesStore } from '../stores/memories'
 import { useAgents } from '../composables/useAgents'
+import { usePrincipalsStore } from '../stores/principals'
+import PrincipalChipRow from './PrincipalChipRow.vue'
+import type { MemoryType } from '../types'
 
 /**
  * MemorySidebar — left navigation for the memories app (global +
  * agent-scoped). Plug-side equivalent of the host's
  * `spora-frontend/src/apps/memories/components/MemorySidebar.vue`.
  *
- * Differs from the host in exactly one place: `useAgentStore` is
- * swapped for the plugin-local `useAgents` composable. The composable
- * fetches `/agents` through `hostContext.api` (see `composables/useAgents.ts`),
- * keeps a cached ref so the sidebar sees a stable list, and exposes
- * the same `{ agents, fetchAgents }` shape.
+ * Differs from the host in exactly two places:
+ *   - `useAgentStore` is swapped for the plugin-local `useAgents`
+ *     composable. The composable fetches `/agents` through
+ *     `hostContext.api` (see `composables/useAgents.ts`), keeps a
+ *     cached ref so the sidebar sees a stable list, and exposes the
+ *     same `{ agents, fetchAgents }` shape.
+ *   - A `PrincipalChipRow` is rendered above the global list. When
+ *     the operator switches principal, `memoriesStore.loadGlobalMemories()`
+ *     is called so the visible list reflects the new principal scope.
  *
- * Everything else — the route-driven header, the global/agent list
- * sections, the agent dropdown, the deep-link query params — is the
- * same. The two page components consume the sidebar's emitted
- * `close` event only on mobile.
+ * Everything else — the route-driven header, the agent dropdown, the
+ * deep-link query params — is the same.
  */
 const route = useRoute()
 const router = useRouter()
 const memoriesStore = useMemoriesStore()
+const principalsStore = usePrincipalsStore()
 const { agents, fetchAgents } = useAgents()
 
 defineProps<{
@@ -36,20 +42,48 @@ const emit = defineEmits<{
 
 const selectedAgentId = ref<number | null>(null)
 const showAgentDropdown = ref(false)
+const selectedType = ref<MemoryType | null>(null)
 
 const isGlobalRoute = computed(() => route.name === 'global-memories')
 const isAgentRoute = computed(() => route.name === 'agent-memories')
 
+const TYPES: ReadonlyArray<{ value: MemoryType; label: string }> = [
+    { value: 'plan', label: 'Plans' },
+    { value: 'documentation', label: 'Docs' },
+    { value: 'examples', label: 'Examples' },
+    { value: 'context', label: 'Context' },
+]
+
 function selectAgent(agentId: number): void {
     selectedAgentId.value = agentId
     showAgentDropdown.value = false
-    void memoriesStore.loadAgentMemories(agentId)
+    void memoriesStore.loadAgentMemories(agentId, selectedType.value ?? undefined)
     router.push({ name: 'agent-memories', params: { id: String(agentId) } })
 }
 
+function selectType(type: MemoryType | null): void {
+    selectedType.value = type
+    if (isGlobalRoute.value) {
+        void memoriesStore.loadGlobalMemories(type ?? undefined)
+    } else if (selectedAgentId.value !== null) {
+        void memoriesStore.loadAgentMemories(selectedAgentId.value, type ?? undefined)
+    }
+}
+
+watch(
+    () => principalsStore.selectedPrincipalId,
+    () => {
+        if (isGlobalRoute.value) {
+            void memoriesStore.loadGlobalMemories(selectedType.value ?? undefined)
+        }
+    },
+)
+
 onMounted(async () => {
-    await fetchAgents()
-    await memoriesStore.loadGlobalMemories()
+    await Promise.all([
+        fetchAgents(),
+        memoriesStore.loadGlobalMemories(selectedType.value ?? undefined),
+    ])
 
     // Initialize selectedAgentId from URL or default to first agent
     const routeId = Number(route.params.id)
@@ -60,7 +94,7 @@ onMounted(async () => {
     }
 
     if (selectedAgentId.value !== null) {
-        await memoriesStore.loadAgentMemories(selectedAgentId.value)
+        await memoriesStore.loadAgentMemories(selectedAgentId.value, selectedType.value ?? undefined)
     }
 })
 
@@ -69,11 +103,11 @@ const selectedAgentName = computed(() => {
     return agents.value.find((a) => a.id === selectedAgentId.value)?.name ?? 'Unknown'
 })
 
-function navigateToMemory(memoryId: number): void {
+function navigateToMemory(memoryId: string): void {
     router.push({
         name: 'agent-memories',
         params: { id: String(selectedAgentId.value ?? '') },
-        query: { memory: String(memoryId) },
+        query: { memory: memoryId },
     })
 }
 </script>
@@ -120,6 +154,25 @@ function navigateToMemory(memoryId: number): void {
                     </button>
                 </div>
 
+                <div class="mb-2">
+                    <PrincipalChipRow />
+                </div>
+
+                <div class="flex flex-wrap gap-1 mb-2">
+                    <button
+                        v-for="t in TYPES"
+                        :key="t.value"
+                        type="button"
+                        class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
+                        :class="selectedType === t.value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary'"
+                        @click="selectType(selectedType === t.value ? null : t.value)"
+                    >
+                        {{ t.label }}
+                    </button>
+                </div>
+
                 <div v-if="memoriesStore.globalMemories.length === 0" class="text-xs text-muted-foreground py-1">
                     No global memories.
                 </div>
@@ -128,8 +181,8 @@ function navigateToMemory(memoryId: number): void {
                         v-for="memory in memoriesStore.globalMemories.slice(0, 5)"
                         :key="memory.id"
                         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 cursor-pointer transition-colors"
-                        :class="route.query.memory === String(memory.id) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'"
-                        @click="router.push({ name: 'global-memories', query: { memory: String(memory.id) } })"
+                        :class="route.query.memory === memory.id ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'"
+                        @click="router.push({ name: 'global-memories', query: { memory: memory.id } })"
                     >
                         <span class="truncate flex-1 text-xs">{{ memory.name }}</span>
                     </li>
@@ -201,6 +254,21 @@ function navigateToMemory(memoryId: number): void {
                     </div>
                 </div>
 
+                <div class="flex flex-wrap gap-1 mb-2">
+                    <button
+                        v-for="t in TYPES"
+                        :key="t.value"
+                        type="button"
+                        class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
+                        :class="selectedType === t.value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary'"
+                        @click="selectType(selectedType === t.value ? null : t.value)"
+                    >
+                        {{ t.label }}
+                    </button>
+                </div>
+
                 <div v-if="selectedAgentId === null" class="text-xs text-muted-foreground py-1">
                     Select an agent.
                 </div>
@@ -212,7 +280,7 @@ function navigateToMemory(memoryId: number): void {
                         v-for="memory in memoriesStore.agentMemories.slice(0, 5)"
                         :key="memory.id"
                         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 cursor-pointer transition-colors"
-                        :class="route.query.memory === String(memory.id) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'"
+                        :class="route.query.memory === memory.id ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'"
                         @click="navigateToMemory(memory.id)"
                     >
                         <span class="truncate flex-1 text-xs">{{ memory.name }}</span>

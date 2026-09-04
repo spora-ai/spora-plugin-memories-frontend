@@ -7,13 +7,15 @@ import { mount } from '@vue/test-utils'
 import { describe, it, expect } from 'vitest'
 
 const memory = {
-    id: 1,
+    id: '11111111-1111-7111-b012-111111111111',
+    principal_id: 42,
     name: 'Test Memory Name',
     content: 'A test memory',
     summary: null,
-    order: 0,
+    type: 'context' as const,
+    scope: 'global' as const,
     agent_id: null,
-    user_id: null,
+    order: 0,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
 }

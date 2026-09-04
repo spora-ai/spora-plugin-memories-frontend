@@ -8,15 +8,22 @@
  * either this module (preferred) or `api/client.ts`.
  */
 import { getApi } from './client'
-import type { MemoryResource, CreateMemoryDto, UpdateMemoryDto } from '../types'
+import type {
+    MemoryResource,
+    MemoryType,
+    CreateMemoryDto,
+    UpdateMemoryDto,
+    ReplaceMemoryDto,
+} from '../types'
 
-export async function getGlobalMemories(): Promise<MemoryResource[]> {
+export async function getGlobalMemories(type?: MemoryType): Promise<MemoryResource[]> {
     const api = getApi()
-    const result = await api.get<{ memories: MemoryResource[] }>('/memories')
+    const path = type !== undefined ? `/memories?type=${encodeURIComponent(type)}` : '/memories'
+    const result = await api.get<{ memories: MemoryResource[] }>(path)
     return result.memories
 }
 
-export async function getGlobalMemory(id: number): Promise<MemoryResource> {
+export async function getGlobalMemory(id: string): Promise<MemoryResource> {
     const api = getApi()
     const result = await api.get<{ memory: MemoryResource }>(`/memories/${id}`)
     return result.memory
@@ -28,24 +35,33 @@ export async function createGlobalMemory(data: CreateMemoryDto): Promise<MemoryR
     return result.memory
 }
 
-export async function updateGlobalMemory(id: number, data: UpdateMemoryDto): Promise<MemoryResource> {
+export async function updateGlobalMemory(id: string, data: UpdateMemoryDto): Promise<MemoryResource> {
     const api = getApi()
     const result = await api.put<{ memory: MemoryResource }>(`/memories/${id}`, data)
     return result.memory
 }
 
-export async function deleteGlobalMemory(id: number): Promise<void> {
+export async function deleteGlobalMemory(id: string): Promise<void> {
     const api = getApi()
     await api.delete(`/memories/${id}`)
 }
 
-export async function getAgentMemories(agentId: number): Promise<MemoryResource[]> {
+export async function replaceGlobalMemory(id: string, data: ReplaceMemoryDto): Promise<MemoryResource> {
     const api = getApi()
-    const result = await api.get<{ memories: MemoryResource[] }>(`/agents/${agentId}/memories`)
+    const result = await api.post<{ memory: MemoryResource }>(`/memories/${id}/replace`, data)
+    return result.memory
+}
+
+export async function getAgentMemories(agentId: number, type?: MemoryType): Promise<MemoryResource[]> {
+    const api = getApi()
+    const path = type !== undefined
+        ? `/agents/${agentId}/memories?type=${encodeURIComponent(type)}`
+        : `/agents/${agentId}/memories`
+    const result = await api.get<{ memories: MemoryResource[] }>(path)
     return result.memories
 }
 
-export async function getAgentMemory(agentId: number, memoryId: number): Promise<MemoryResource> {
+export async function getAgentMemory(agentId: number, memoryId: string): Promise<MemoryResource> {
     const api = getApi()
     const result = await api.get<{ memory: MemoryResource }>(`/agents/${agentId}/memories/${memoryId}`)
     return result.memory
@@ -57,23 +73,40 @@ export async function createAgentMemory(agentId: number, data: CreateMemoryDto):
     return result.memory
 }
 
-export async function updateAgentMemory(agentId: number, memoryId: number, data: UpdateMemoryDto): Promise<MemoryResource> {
+export async function updateAgentMemory(
+    agentId: number,
+    memoryId: string,
+    data: UpdateMemoryDto,
+): Promise<MemoryResource> {
     const api = getApi()
     const result = await api.put<{ memory: MemoryResource }>(`/agents/${agentId}/memories/${memoryId}`, data)
     return result.memory
 }
 
-export async function deleteAgentMemory(agentId: number, memoryId: number): Promise<void> {
+export async function deleteAgentMemory(agentId: number, memoryId: string): Promise<void> {
     const api = getApi()
     await api.delete(`/agents/${agentId}/memories/${memoryId}`)
 }
 
-export async function reorderGlobalMemories(orderedIds: number[]): Promise<void> {
+export async function replaceAgentMemory(
+    agentId: number,
+    memoryId: string,
+    data: ReplaceMemoryDto,
+): Promise<MemoryResource> {
+    const api = getApi()
+    const result = await api.post<{ memory: MemoryResource }>(
+        `/agents/${agentId}/memories/${memoryId}/replace`,
+        data,
+    )
+    return result.memory
+}
+
+export async function reorderGlobalMemories(orderedIds: string[]): Promise<void> {
     const api = getApi()
     await api.patch('/memories/reorder', { order: orderedIds })
 }
 
-export async function reorderAgentMemories(agentId: number, orderedIds: number[]): Promise<void> {
+export async function reorderAgentMemories(agentId: number, orderedIds: string[]): Promise<void> {
     const api = getApi()
     await api.patch(`/agents/${agentId}/memories/reorder`, { order: orderedIds })
 }

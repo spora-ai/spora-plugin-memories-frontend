@@ -18,14 +18,13 @@ import './style.css'
  * `createMemoryHistory` keeps the URLs in JavaScript rather than the
  * browser address bar. The host SPA renders this bundle under
  * `/apps/memories`; clicking the sidebar's internal deep-links only
- * updates our in-app route state. The `MemorySidebar` and the two
- * page components read their state from `useRoute()`/`useRouter()`,
- * which `app.use(localRouter)` activates.
+ * updates our in-app route state.
  *
- * `MountContract` (declared in `main.ts → const SporaApp`) installs
- * the router via `app.use(localRouter)` before mounting the app, so
+ * `main.ts → SporaApp` calls `app.use(localRouter)` before mounting, so
  * `useRoute()`/`useRouter()` resolve to the local router for the
- * duration of the slot.
+ * duration of the slot. `hostContext` is provided via `provide(...)`
+ * so descendants (`MemoryEditor`, the two pages) can inject it
+ * without prop-drilling.
  *
  * Defining the router here (not in `main.ts`) keeps the entry's only
  * job to plugin mounting/unmounting.
@@ -56,8 +55,6 @@ const router = createRouter({
     ],
 })
 
-// Expose router + hostContext to descendants so `MemoriesPage`/
-// `MemorySidebar` can reach them via `useRouter()`/`inject()`.
 defineExpose({ router, hostContext: props.hostContext })
 </script>
 
