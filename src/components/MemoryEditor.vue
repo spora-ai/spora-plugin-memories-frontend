@@ -30,6 +30,12 @@ import type { PluginHostContext } from '../shims'
  *   - `toolbars` mirrors the host's `MarkdownEditor.vue` `full` mode set
  *     minus `github`/`mermaid`/`formula` (we don't ship diagrams/LaTeX
  *     in memories content). Locale is pinned to `en-US`.
+ *   - `:preview="false"` opens the editor in edit-only mode by default;
+ *     the toolbar's `preview` button still toggles between edit-only,
+ *     split and preview-only — operators opt into the preview pane
+ *     instead of getting it for free. md-editor-v3 stores the user's
+ *     choice within the session via the toolbar, so toggling it back
+ *     on once keeps it on across reopens until the page reloads.
  *
  * Action buttons emit `save(data)` / `delete()` / `cancel()`. The
  * earlier `replace` emit (surgical-edit substring replacement) was
@@ -230,7 +236,7 @@ async function handleAttachMedia(): Promise<void> {
                     :theme="theme ?? 'light'"
                     :language="MEMORY_LOCALE"
                     :toolbars="MEMORY_EDITOR_TOOLBARS"
-                    :preview="true"
+                    :preview="false"
                     mode="full"
                     @update:model-value="content = $event"
                 />

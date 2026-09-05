@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import App from './App.vue'
 import MemoriesPage from './pages/MemoriesPage.vue'
 import { setApi } from './api/client'
-import type { PluginHostContext } from './shims'
+import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
 
 /**
  * Plugin mount/unmount contract.
@@ -35,8 +35,6 @@ interface MountContract {
 interface MountTarget extends HTMLElement {
     __sporaApp?: { unmount: () => void; app: import('vue').App }
 }
-
-const HOST_CONTEXT_KEY = Symbol('spora-memories-host-context') as unknown as import('vue').InjectionKey<PluginHostContext>
 
 const SporaApp: MountContract = {
     mount(target: HTMLElement, hostContext: PluginHostContext): void {

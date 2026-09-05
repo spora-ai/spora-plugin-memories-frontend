@@ -3,10 +3,20 @@
  * plugin tree (the editor, the pages) `inject(HOST_CONTEXT_KEY)` to
  * reach the host's `openMediaPicker` and other host-only contracts
  * without prop-drilling.
+ *
+ * Defined once and imported by every bootstrap path
+ * (`src/main.ts` for the production mount, `src/dev-main.ts` for the
+ * standalone dev sandbox). Earlier the production entry declared a
+ * duplicate `Symbol('spora-memories-host-context')` locally and the
+ * dev entry didn't provide either key at all — `MemoriesPage` then
+ * warned `[Vue warn]: injection "Symbol(spora-memories-host-context)"
+ * not found` and the `<MemoryEditor :host-context>` prop was
+ * `undefined`, silently disabling "Attach media".
  */
+import type { InjectionKey } from 'vue'
 import type { MediaAsset, MediaPickerOptions } from './types'
 
-export const HOST_CONTEXT_KEY: import('vue').InjectionKey<PluginHostContext> = Symbol('spora-memories-host-context') as unknown as import('vue').InjectionKey<PluginHostContext>
+export const HOST_CONTEXT_KEY: InjectionKey<PluginHostContext> = Symbol('spora-memories-host-context') as unknown as InjectionKey<PluginHostContext>
 
 /**
  * The Memories SPA is mounted into a slot owned by the host's
