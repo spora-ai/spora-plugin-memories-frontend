@@ -166,6 +166,41 @@ function applyReplace(input: ReplaceableBody, current: string): string {
     return current.replace(anchor, input.new_text ?? '')
 }
 
+/**
+ * Pull `?principal_id=N` (repeated) from a `/agents?…` style path so
+ * the dev-mock honours the same URL convention the typed
+ * `api/agents` client uses. Returns null when the param is absent or
+ * empty after dedup.
+ */
+function parseAgentsPathQuery(path: string): number[] | null {
+    const match = /^\/agents(?:\?(.+))?$/.exec(path)
+    if (match?.[1] === undefined) return null
+    return parsePrincipalIdList(new URLSearchParams(match[1]))
+}
+
+/**
+ * Type guard: filter is set when callers pass a non-empty array of
+ * principal ids. Returning `number[]` (not `null`) inside the branch
+ * keeps TypeScript's narrowing honest so `.includes()` accepts ints
+ * without forcing a non-null assertion.
+ */
+function isPrincipalFilter(ids: number[] | null | undefined): ids is number[] {
+    return Array.isArray(ids) && ids.length > 0
+}
+
+/**
+ * Module-scope wrapper around `AGENTS_WITH_PRINCIPAL` for the dev
+ * mock. Hoisted out of `createMockApi()` so SonarCloud S7721 stops
+ * asking for it; closure-captured state in the dev mock is just
+ * the fixture rows.
+ */
+function listAgentsScoped(principalIds: number[] | null): AgentSummary[] {
+    const rows = isPrincipalFilter(principalIds)
+        ? AGENTS_WITH_PRINCIPAL.filter((a) => principalIds.includes(a.principal_id))
+        : AGENTS_WITH_PRINCIPAL
+    return rows.map((a) => ({ id: a.id, name: a.name }))
+}
+
 function fixtures(): MemoryResource[] {
     return [
         {
@@ -285,42 +320,7 @@ const MOCK_PRINCIPALS = [
 export function createMockApi(): PluginHostContext['api'] {
     let memories = fixtures()
 
-    /**
- * Pull `?principal_id=N` (repeated) from a `/agents?…` style path so
- * the dev-mock honours the same URL convention the typed
- * `api/agents` client uses. Returns null when the param is absent or
- * empty after dedup.
- */
-function parseAgentsPathQuery(path: string): number[] | null {
-    const match = /^\/agents(?:\?(.+))?$/.exec(path)
-    if (match?.[1] === undefined) return null
-    return parsePrincipalIdList(new URLSearchParams(match[1]))
-}
-
-/**
- * Type guard: filter is set when callers pass a non-empty array of
- * principal ids. Returning `number[]` (not `null`) inside the branch
- * keeps TypeScript's narrowing honest so `.includes()` accepts ints
- * without forcing a non-null assertion.
- */
-function isPrincipalFilter(ids: number[] | null | undefined): ids is number[] {
-    return Array.isArray(ids) && ids.length > 0
-}
-
-/**
- * Module-scope wrapper around `AGENTS_WITH_PRINCIPAL` for the dev
- * mock. Hoisted out of `createMockApi()` so SonarCloud S7721 stops
- * asking for it; closure-captured state in the dev mock is just
- * the fixture rows.
- */
-function listAgentsScoped(principalIds: number[] | null): AgentSummary[] {
-    const rows = isPrincipalFilter(principalIds)
-        ? AGENTS_WITH_PRINCIPAL.filter((a) => principalIds.includes(a.principal_id))
-        : AGENTS_WITH_PRINCIPAL
-    return rows.map((a) => ({ id: a.id, name: a.name }))
-}
-
-function listGlobal(type?: MemoryType, principalIds?: number[] | null): MemoryResource[] {
+    function listGlobal(type?: MemoryType, principalIds?: number[] | null): MemoryResource[] {
         const scoped = isPrincipalFilter(principalIds)
             ? memories.filter((m) => m.scope === 'global' && m.principal_id !== null && principalIds.includes(m.principal_id))
             : memories.filter((m) => m.scope === 'global')
