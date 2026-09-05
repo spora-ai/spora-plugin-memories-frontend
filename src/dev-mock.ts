@@ -340,10 +340,6 @@ export function createMockApi(): PluginHostContext['api'] {
         return found
     }
 
-    function listAgentsMock(principalIds: number[] | null): AgentSummary[] {
-        return listAgentsScoped(principalIds)
-    }
-
     function replaceMemoryContent(idx: number, input: ReplaceableBody): void {
         const current = memories[idx]?.content ?? ''
         const content = applyReplace(input, current)
@@ -368,7 +364,7 @@ export function createMockApi(): PluginHostContext['api'] {
             if (path === '/agents' || path.startsWith('/agents?')) {
                 const inline = parseAgentsPathQuery(path)
                 const filters = inline ?? queryPrincipalIds
-                return { agents: listAgentsMock(filters) } as unknown as T
+                return { agents: listAgentsScoped(filters) } as unknown as T
             }
             if (path === '/principals/me') {
                 return { principals: MOCK_PRINCIPALS } as unknown as T
