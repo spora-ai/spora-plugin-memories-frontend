@@ -61,11 +61,32 @@ interface ReplaceableBody {
  * `undefined` → path did not match the route, dispatcher should
  *                fall through to the next candidate.
  */
-function parseGlobalListQuery(path: string): { type: MemoryType | null } | undefined {
-    const match = /^\/memories(?:\?type=([^&]+))?$/.exec(path)
+function parseGlobalListQuery(path: string): { type: MemoryType | null; principalId: number[] | null } | undefined {
+    const match = /^\/memories(?:\?(.+))?$/.exec(path)
     if (!match) return undefined
-    const rawType = match[1] !== undefined ? decodeURIComponent(match[1]) : undefined
-    return { type: rawType === undefined ? null : matchType(rawType) }
+    const rawQuery = match[1] ?? ''
+    const params = new URLSearchParams(rawQuery)
+    const rawType = params.get('type')
+    return {
+        type: rawType === null ? null : matchType(rawType),
+        principalId: parsePrincipalIdList(params),
+    }
+}
+
+/**
+ * Pull every `?principal_id=N` (repeated) into a deduped list of
+ * positive ints. Returns null when the filter is absent or empty so
+ * callers can fall back to "every visible principal".
+ */
+function parsePrincipalIdList(params: URLSearchParams): number[] | null {
+    const raw = params.getAll('principal_id')
+    if (raw.length === 0) return null
+    const ids = new Set<number>()
+    for (const value of raw) {
+        const n = Number(value)
+        if (Number.isInteger(n) && n > 0) ids.add(n)
+    }
+    return ids.size === 0 ? null : Array.from(ids)
 }
 
 function parseGlobalMemoryId(path: string): string | undefined {
@@ -74,12 +95,17 @@ function parseGlobalMemoryId(path: string): string | undefined {
     return match[1] ?? ''
 }
 
-function parseAgentListQuery(path: string): { agentId: number; type: MemoryType | null } | undefined {
-    const match = /^\/agents\/(\d+)\/memories(?:\?type=([^&]+))?$/.exec(path)
+function parseAgentListQuery(path: string): { agentId: number; type: MemoryType | null; principalId: number[] | null } | undefined {
+    const match = /^\/agents\/(\d+)\/memories(?:\?(.+))?$/.exec(path)
     if (!match) return undefined
     const agentId = Number(match[1])
-    const rawType = match[2] !== undefined ? decodeURIComponent(match[2]) : undefined
-    return { agentId, type: rawType === undefined ? null : matchType(rawType) }
+    const params = new URLSearchParams(match[2] ?? '')
+    const rawType = params.get('type')
+    return {
+        agentId,
+        type: rawType === null ? null : matchType(rawType),
+        principalId: parsePrincipalIdList(params),
+    }
 }
 
 function parseAgentMemoryPath(path: string): { agentId: number; memoryId: string } | undefined {
@@ -169,6 +195,9 @@ function fixtures(): MemoryResource[] {
             updated_at: new Date(Date.now() - 86400000 * 5).toISOString(),
         },
         {
+            // Group-scoped memory — only visible when the operator has
+            // picked the group principal in PrincipalChipRow. Mirrors
+            // the live fixture that the bug-fix verification reused.
             id: uid(3),
             principal_id: 99,
             agent_id: null,
@@ -207,6 +236,22 @@ function fixtures(): MemoryResource[] {
             created_at: new Date(Date.now() - 3600000).toISOString(),
             updated_at: new Date(Date.now() - 3600000).toISOString(),
         },
+        {
+            // Group-owned agent-scoped memory — only visible when
+            // the operator has selected the group principal AND agent
+            // 8 in the dropdown.
+            id: uid(6),
+            principal_id: 99,
+            agent_id: 8,
+            scope: 'agent',
+            type: 'context',
+            name: 'team_runbook',
+            summary: null,
+            content: 'Escalation: Alice → Bob → Carol',
+            order: 0,
+            created_at: new Date(Date.now() - 600000).toISOString(),
+            updated_at: new Date(Date.now() - 600000).toISOString(),
+        },
     ]
 }
 
@@ -215,24 +260,78 @@ const AGENTS: AgentSummary[] = [
     { id: 8, name: 'Triage Helper' },
     { id: 9, name: 'Release Manager' },
 ]
+// `Agent` from a real controller carries `principal_id`; the dev mock
+// pretends each row is owned by one principal. The frontend only
+// consumes `{ id, name }` today but the principals test reads this
+// directly to scope the dropdown.
+interface AgentWithPrincipal extends AgentSummary { principal_id: number }
+const AGENTS_WITH_PRINCIPAL: AgentWithPrincipal[] = [
+    { ...AGENTS[0], principal_id: 42 },
+    { ...AGENTS[1], principal_id: 99 },
+    { ...AGENTS[2], principal_id: 42 },
+]
+
+/**
+ * Dev-mode principal identity. The real `PrincipalChipRow` picks among
+ * the caller's visible principals; here we hard-code two so the mock
+ * supports the user-principal/group-principal toggle the chip row
+ * exercises.
+ */
+const MOCK_PRINCIPALS = [
+    { id: 42, type: 'user',  name: 'Operator', user_id: 42, group_id: null },
+    { id: 99, type: 'group', name: 'Team',     user_id: null, group_id: 7 },
+] as const
 
 export function createMockApi(): PluginHostContext['api'] {
     let memories = fixtures()
 
-    function listGlobal(type?: MemoryType): MemoryResource[] {
-        return memories.filter((m) => m.scope === 'global').filter((m) => type === undefined || m.type === type)
+    /**
+ * Pull `?principal_id=N` (repeated) from a `/agents?…` style path so
+ * the dev-mock honours the same URL convention the typed
+ * `api/agents` client uses. Returns null when the param is absent or
+ * empty after dedup.
+ */
+function parseAgentsPathQuery(path: string): number[] | null {
+    const match = /^\/agents(?:\?(.+))?$/.exec(path)
+    if (!match || !match[1]) return null
+    return parsePrincipalIdList(new URLSearchParams(match[1]))
+}
+
+/**
+ * Type guard: filter is set when callers pass a non-empty array of
+ * principal ids. Returning `number[]` (not `null`) inside the branch
+ * keeps TypeScript's narrowing honest so `.includes()` accepts ints
+ * without forcing a non-null assertion.
+ */
+function isPrincipalFilter(ids: number[] | null | undefined): ids is number[] {
+    return Array.isArray(ids) && ids.length > 0
+}
+
+function listGlobal(type?: MemoryType, principalIds?: number[] | null): MemoryResource[] {
+        const scoped = isPrincipalFilter(principalIds)
+            ? memories.filter((m) => m.scope === 'global' && m.principal_id !== null && principalIds.includes(m.principal_id))
+            : memories.filter((m) => m.scope === 'global')
+        return scoped.filter((m) => type === undefined || m.type === type)
     }
 
-    function listAgent(agentId: number, type?: MemoryType): MemoryResource[] {
-        return memories
-            .filter((m) => m.scope === 'agent' && m.agent_id === agentId)
-            .filter((m) => type === undefined || m.type === type)
+    function listAgent(agentId: number, type?: MemoryType, principalIds?: number[] | null): MemoryResource[] {
+        const scoped = isPrincipalFilter(principalIds)
+            ? memories.filter((m) => m.scope === 'agent' && m.agent_id === agentId && m.principal_id !== null && principalIds.includes(m.principal_id))
+            : memories.filter((m) => m.scope === 'agent' && m.agent_id === agentId)
+        return scoped.filter((m) => type === undefined || m.type === type)
     }
 
     function findById(id: string): MemoryResource {
         const found = memories.find((m) => m.id === id)
         if (!found) throw new Error(`Not found: ${id}`)
         return found
+    }
+
+    function listAgentsMock(principalIds?: number[] | null): AgentSummary[] {
+        const filtered = principalIds === null || principalIds === undefined
+            ? AGENTS_WITH_PRINCIPAL
+            : AGENTS_WITH_PRINCIPAL.filter((a) => principalIds.includes(a.principal_id))
+        return filtered.map((a) => ({ id: a.id, name: a.name }))
     }
 
     function replaceMemoryContent(idx: number, input: ReplaceableBody): void {
@@ -246,20 +345,28 @@ export function createMockApi(): PluginHostContext['api'] {
     }
 
     return {
-        async get<T>(path: string): Promise<T> {
-            if (path === '/agents') {
-                return { agents: AGENTS } as unknown as T
+        async get<T>(path: string, query?: Record<string, unknown>): Promise<T> {
+            // The new typed `api/agents` client passes repeatable
+            // principal_ids as an array via query. The dev mock also
+            // honours `?principal_id=N` parsed out of the path so the
+            // legacy `globalId/agentList` regex parsers keep working.
+            const queryPrincipalIds = readPrincipalIdsFromQuery(query)
+            // `/agents` matches with an optional trailing query — the
+            // old `path === '/agents'` strict-equality check would
+            // miss `/agents?principal_id=42` since the URL parser
+            // hands over the query string with the path.
+            if (path === '/agents' || path.startsWith('/agents?')) {
+                const inline = parseAgentsPathQuery(path)
+                const filters = inline ?? queryPrincipalIds
+                return { agents: listAgentsMock(filters) } as unknown as T
             }
             if (path === '/principals/me') {
-                return {
-                    principals: [
-                        { id: CURRENT_USER_ID, type: 'user', name: `User #${CURRENT_USER_ID}`, user_id: CURRENT_USER_ID, group_id: null },
-                    ],
-                } as unknown as T
+                return { principals: MOCK_PRINCIPALS } as unknown as T
             }
             const globalList = parseGlobalListQuery(path)
             if (globalList !== undefined) {
-                return { memories: listGlobal(globalList.type ?? undefined) } as unknown as T
+                const principalIds = globalList.principalId ?? queryPrincipalIds
+                return { memories: listGlobal(globalList.type ?? undefined, principalIds) } as unknown as T
             }
             const globalId = parseGlobalMemoryId(path)
             if (globalId !== undefined) {
@@ -267,7 +374,8 @@ export function createMockApi(): PluginHostContext['api'] {
             }
             const agentList = parseAgentListQuery(path)
             if (agentList !== undefined) {
-                return { memories: listAgent(agentList.agentId, agentList.type ?? undefined) } as unknown as T
+                const principalIds = agentList.principalId ?? queryPrincipalIds
+                return { memories: listAgent(agentList.agentId, agentList.type ?? undefined, principalIds) } as unknown as T
             }
             const agentMemory = parseAgentMemoryPath(path)
             if (agentMemory !== undefined) {
@@ -278,7 +386,7 @@ export function createMockApi(): PluginHostContext['api'] {
 
         async post<T>(path: string, body: unknown): Promise<T> {
             const input = (body ?? {}) as ReplaceableBody
-            if (path === '/memories') {
+            if (path.startsWith('/memories') && !path.includes('/replace')) {
                 const memory = buildMemory(input, 'global', null, listGlobal().length)
                 memories.push(memory)
                 return { memory } as unknown as T
@@ -335,7 +443,7 @@ export function createMockApi(): PluginHostContext['api'] {
 
         async patch<T>(path: string, body: unknown): Promise<T> {
             const input = (body ?? {}) as { order?: string[] }
-            if (path === '/memories/reorder' && Array.isArray(input.order)) {
+            if (path.startsWith('/memories/reorder') && Array.isArray(input.order)) {
                 const ordered = input.order
                     .map((id) => memories.find((m) => m.id === id && m.scope === 'global'))
                     .filter((m): m is MemoryResource => m !== undefined)
@@ -373,6 +481,27 @@ export function createMockApi(): PluginHostContext['api'] {
             throw new Error(`Mock API has no handler for DELETE ${path}`)
         },
     } as PluginHostContext['api']
+}
+
+/**
+ * Pull `principal_id` from the request query bag. Accepted shapes:
+ *   - `?principal_id=N`           — repeated becomes an array when the
+ *     caller sends `?principal_id=a&principal_id=b`.
+ *   - `{ principal_id: [n, m] }`   — the typed `api/agents` client
+ *     passes an array directly.
+ * Returns null when the call carries no filter.
+ */
+function readPrincipalIdsFromQuery(query: Record<string, unknown> | undefined): number[] | null {
+    if (query === undefined || query === null) return null
+    const raw = query['principal_id']
+    if (raw === undefined || raw === null) return null
+    const values = Array.isArray(raw) ? raw : [raw]
+    const ids: number[] = []
+    for (const value of values) {
+        const n = typeof value === 'number' ? value : Number(value)
+        if (Number.isInteger(n) && n > 0) ids.push(n)
+    }
+    return ids.length === 0 ? null : ids
 }
 
 /**

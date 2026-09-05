@@ -516,19 +516,40 @@ describe('MemoriesPage — principal change', () => {
         expect(loadGlobalMemories).toHaveBeenCalled()
     })
 
-    it('does not reload any memories when the principal changes on the agent route', async () => {
+    it('reloads agent memories when the principal changes on the agent route', async () => {
+        // Mock keeps agent 7 visible regardless of principal — the
+        // active agent stays in the dropdown after the change, so the
+        // page reloads its memories under the new principal scope.
         routeObj.name = 'agent-memories'
         routeObj.params = { id: '7' }
         agentsRef.value = [{ id: 7, name: 'A' }]
         principalsRef.value = [{ id: 1, type: 'user', name: 'User #1' }]
         mountPage()
         await flushPromises()
-        loadGlobalMemories.mockClear()
         loadAgentMemories.mockClear()
+        loadGlobalMemories.mockClear()
         selectedPrincipalId.value = 2
         await flushPromises()
+        expect(loadAgentMemories).toHaveBeenCalled()
         expect(loadGlobalMemories).not.toHaveBeenCalled()
-        expect(loadAgentMemories).not.toHaveBeenCalled()
+    })
+
+    it('falls back to global memories when the active agent is no longer visible after the principal change', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }]
+        principalsRef.value = [{ id: 1, type: 'user', name: 'User #1' }]
+        mountPage()
+        await flushPromises()
+        loadAgentMemories.mockClear()
+        loadGlobalMemories.mockClear()
+        // Simulate the principal change kicking the agent out of the
+        // filtered list — that's the invariant that drives the route
+        // nudge to global-memories.
+        agentsRef.value = []
+        selectedPrincipalId.value = 2
+        await flushPromises()
+        expect(pushMock).toHaveBeenCalledWith({ name: 'global-memories' })
     })
 })
 

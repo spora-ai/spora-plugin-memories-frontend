@@ -79,6 +79,44 @@ describe('createMockApi', () => {
             expect(result.principals[0]?.type).toBe('user')
         })
 
+        it('exposes both a user and a group principal so the chip row has two scopes to flip between', async () => {
+            const result = await api.get<{ principals: Array<{ id: number; type: string }> }>('/principals/me')
+            const types = new Set(result.principals.map((p) => p.type))
+            expect(types.has('user')).toBe(true)
+            expect(types.has('group')).toBe(true)
+        })
+
+        it('filters the global memories list with ?principal_id=', async () => {
+            const all = await api.get<{ memories: Array<{ name: string }> }>('/memories')
+            const userOnly = await api.get<{ memories: Array<{ name: string }> }>('/memories?principal_id=42')
+            const groupOnly = await api.get<{ memories: Array<{ name: string }> }>('/memories?principal_id=99')
+
+            expect(userOnly.memories.length).toBeLessThan(all.memories.length)
+            expect(groupOnly.memories.length).toBeLessThan(all.memories.length)
+            expect(userOnly.memories.length + groupOnly.memories.length).toBe(all.memories.length)
+            // team_roster is the group-scoped fixture
+            expect(groupOnly.memories.map((m) => m.name)).toContain('team_roster')
+            expect(userOnly.memories.map((m) => m.name)).not.toContain('team_roster')
+        })
+
+        it('combines ?principal_id= and ?type= filters', async () => {
+            const result = await api.get<{ memories: Array<{ name: string; type: string }> }>('/memories?principal_id=99&type=examples')
+            expect(result.memories.length).toBe(1)
+            expect(result.memories[0]?.name).toBe('team_roster')
+        })
+
+        it('returns every agent when /agents is called without a principal filter', async () => {
+            const result = await api.get<{ agents: Array<{ id: number }> }>('/agents')
+            expect(result.agents.length).toBe(FIXTURE_AGENTS.length)
+        })
+
+        it('scopes the /agents response to one principal via ?principal_id=', async () => {
+            const userOnly = await api.get<{ agents: Array<{ id: number }> }>('/agents?principal_id=42')
+            const groupOnly = await api.get<{ agents: Array<{ id: number }> }>('/agents?principal_id=99')
+            expect(userOnly.agents.map((a) => a.id)).toEqual([7, 9])
+            expect(groupOnly.agents.map((a) => a.id)).toEqual([8])
+        })
+
         it('throws when given an unknown route', async () => {
             await expect(api.get('/nope')).rejects.toThrow('Mock API has no handler for /nope')
         })

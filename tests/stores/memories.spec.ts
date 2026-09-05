@@ -10,6 +10,11 @@
  *   - `vi.mock('@/apps/memories/api/memories', ...)` →
  *     `vi.mock('../../src/api/memories', ...)`
  *   - The import path for `useMemoriesStore` matches the plugin layout.
+ *   - `usePrincipalsStore` is stubbed because the memories store now
+ *     reads `selectedPrincipalId` from it on every action. Stub
+ *     exposes a settable `selectedPrincipalId` so a test can pin the
+ *     value the store sees, and a default of `null` so the rest of the
+ *     suite is unaffected.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -25,6 +30,7 @@ const {
     updateAgentMemoryMock,
     deleteAgentMemoryMock,
     reorderAgentMemoriesMock,
+    selectedPrincipalIdRef,
 } = vi.hoisted(() => ({
     getGlobalMemoriesMock: vi.fn(),
     createGlobalMemoryMock: vi.fn(),
@@ -36,12 +42,19 @@ const {
     updateAgentMemoryMock: vi.fn(),
     deleteAgentMemoryMock: vi.fn(),
     reorderAgentMemoriesMock: vi.fn(),
+    selectedPrincipalIdRef: { value: null as number | null },
 }))
 
 vi.mock('../../src/api/client', () => ({
     ApiError: class ApiError extends Error {
         constructor(message: string) { super(message); this.name = 'ApiError' }
     },
+}))
+
+vi.mock('../../src/stores/principals', () => ({
+    usePrincipalsStore: () => ({
+        get selectedPrincipalId(): number | null { return selectedPrincipalIdRef.value },
+    }),
 }))
 
 vi.mock('../../src/api/memories', () => ({
@@ -79,10 +92,72 @@ const sampleMem = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
     vi.resetAllMocks()
+    selectedPrincipalIdRef.value = null
     setActivePinia(createPinia())
 })
 
 describe('memories store', () => {
+    describe('principal scope', () => {
+        it('threads the selected principal id onto every API call', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            selectedPrincipalIdRef.value = 99
+            getGlobalMemoriesMock.mockResolvedValueOnce([])
+            createGlobalMemoryMock.mockResolvedValueOnce(sampleMem())
+            updateGlobalMemoryMock.mockResolvedValueOnce(sampleMem({ id, name: 'x' }))
+            deleteGlobalMemoryMock.mockResolvedValueOnce(undefined)
+            reorderGlobalMemoriesMock.mockResolvedValueOnce(undefined)
+            getAgentMemoriesMock.mockResolvedValueOnce([])
+            createAgentMemoryMock.mockResolvedValueOnce(sampleMem({ agent_id: 7 }))
+            updateAgentMemoryMock.mockResolvedValueOnce(sampleMem({ agent_id: 7 }))
+            deleteAgentMemoryMock.mockResolvedValueOnce(undefined)
+            reorderAgentMemoriesMock.mockResolvedValueOnce(undefined)
+
+            const store = useMemoriesStore()
+            await store.loadGlobalMemories()
+            await store.createGlobalMemory({ name: 'n', type: 'context', content: 'c' })
+            await store.updateGlobalMemory(id, { name: 'x' })
+            await store.deleteGlobalMemory(id)
+            await store.reorderGlobalMemories([id])
+            await store.loadAgentMemories(7)
+            await store.createAgentMemory(7, { name: 'n', type: 'context', content: 'c' })
+            await store.updateAgentMemory(7, id, { name: 'x' })
+            await store.deleteAgentMemory(7, id)
+            await store.reorderAgentMemories(7, [id])
+
+            // Every call's first non-type/principal argument carries the principal id.
+            expect(getGlobalMemoriesMock).toHaveBeenCalledWith(99, undefined)
+            expect(createGlobalMemoryMock).toHaveBeenCalledWith(99, expect.any(Object))
+            expect(updateGlobalMemoryMock).toHaveBeenCalledWith(id, 99, expect.any(Object))
+            expect(deleteGlobalMemoryMock).toHaveBeenCalledWith(id, 99)
+            expect(reorderGlobalMemoriesMock).toHaveBeenCalledWith(99, [id])
+            expect(getAgentMemoriesMock).toHaveBeenCalledWith(7, 99, undefined)
+            expect(createAgentMemoryMock).toHaveBeenCalledWith(7, 99, expect.any(Object))
+            expect(updateAgentMemoryMock).toHaveBeenCalledWith(7, id, 99, expect.any(Object))
+            expect(deleteAgentMemoryMock).toHaveBeenCalledWith(7, id, 99)
+            expect(reorderAgentMemoriesMock).toHaveBeenCalledWith(7, 99, [id])
+        })
+
+        it('omits principal id when no principal is selected', async () => {
+            selectedPrincipalIdRef.value = null
+            getGlobalMemoriesMock.mockResolvedValueOnce([])
+            getAgentMemoriesMock.mockResolvedValueOnce([])
+            const store = useMemoriesStore()
+            await store.loadGlobalMemories()
+            await store.loadAgentMemories(7)
+            expect(getGlobalMemoriesMock).toHaveBeenCalledWith(null, undefined)
+            expect(getAgentMemoriesMock).toHaveBeenCalledWith(7, null, undefined)
+        })
+
+        it('picks up a principal id set right before a fetch', async () => {
+            getGlobalMemoriesMock.mockResolvedValueOnce([])
+            const store = useMemoriesStore()
+            selectedPrincipalIdRef.value = 7
+            await store.loadGlobalMemories()
+            expect(getGlobalMemoriesMock).toHaveBeenCalledWith(7, undefined)
+        })
+    })
+
+
     describe('initial state', () => {
         it('exposes empty lists and null state initially', () => {
             const store = useMemoriesStore()
@@ -110,7 +185,7 @@ describe('memories store', () => {
             getGlobalMemoriesMock.mockResolvedValueOnce([])
             const store = useMemoriesStore()
             await store.loadGlobalMemories('plan')
-            expect(getGlobalMemoriesMock).toHaveBeenCalledWith('plan')
+            expect(getGlobalMemoriesMock).toHaveBeenCalledWith(null, 'plan')
         })
 
         it('loadGlobalMemories sets error on ApiError', async () => {
@@ -214,7 +289,7 @@ describe('memories store', () => {
             getAgentMemoriesMock.mockResolvedValueOnce([])
             const store = useMemoriesStore()
             await store.loadAgentMemories(7, 'plan')
-            expect(getAgentMemoriesMock).toHaveBeenCalledWith(7, 'plan')
+            expect(getAgentMemoriesMock).toHaveBeenCalledWith(7, null, 'plan')
         })
 
         it('loadAgentMemories sets error on ApiError', async () => {

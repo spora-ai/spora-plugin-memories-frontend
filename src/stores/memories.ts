@@ -9,21 +9,28 @@ import type {
     ReplaceMemoryDto,
 } from '../types'
 import * as api from '../api/memories'
+import { usePrincipalsStore } from './principals'
 
 /**
  * Manages global and agent-scoped memories with CRUD, reorder, and
  * surgical-edit operations.
  *
  * Mirrors `spora-frontend/src/apps/memories/stores/memories.ts` (the
- * host-side store this plugin replaces). The only differences:
+ * host-side store this plugin replaces).
+ *
+ * **Principal scoping:** every action reads `selectedPrincipalId` from
+ * `usePrincipalsStore()` at call time and threads it to the API as
+ * `?principal_id=N`. The `PrincipalChipRow` is the single source of
+ * truth — the store doesn't take a separate principal arg, so callers
+ * can't forget to forward it. Pages that already have an active
+ * principal in scope (e.g. the MemoriesPage after `selectPrincipal()`)
+ * get the right id automatically.
+ *
+ * Delta vs. host store:
  *   - The `@/api/client` import is rerouted to our local `api/client.ts`
- *     module, whose `ApiError` shape matches the host's so the catch
- *     blocks stay byte-identical.
- *   - `../api/memories` reads `getApi()` at call-time, so the store
- *     stays a Pinia setup function with no extra props to pass at mount.
- *   - Memories are loaded with an optional `type` filter that the
- *     controller honours via `?type=` (PR-3 wires this through the
- *     pages and PrincipalChipRow).
+ *     so the catch blocks stay byte-identical.
+ *   - `../api/memories` now accepts an optional `principalId` and
+ *     appends `?principal_id=` when set.
  */
 export const useMemoriesStore = defineStore('memories', () => {
     // State
@@ -34,13 +41,23 @@ export const useMemoriesStore = defineStore('memories', () => {
     const saving = ref(false)
     const error = ref<string | null>(null)
 
+    /**
+     * Lazily resolve the principal id from the principals store. The
+     * store is bound to the Pinia instance at use-site; resolving
+     * inside each action (rather than at module-init) avoids an init-
+     * order cycle between the principals store and this one.
+     */
+    function currentPrincipalId(): number | null {
+        return usePrincipalsStore().selectedPrincipalId
+    }
+
     // Global memories
 
     async function loadGlobalMemories(type?: MemoryType): Promise<void> {
         loadingGlobal.value = true
         error.value = null
         try {
-            globalMemories.value = await api.getGlobalMemories(type)
+            globalMemories.value = await api.getGlobalMemories(currentPrincipalId(), type)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to load memories.'
         } finally {
@@ -52,7 +69,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.createGlobalMemory(data)
+            const memory = await api.createGlobalMemory(currentPrincipalId(), data)
             globalMemories.value.push(memory)
             return memory
         } catch (e) {
@@ -67,7 +84,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.updateGlobalMemory(id, data)
+            const memory = await api.updateGlobalMemory(id, currentPrincipalId(), data)
             const idx = globalMemories.value.findIndex((m) => m.id === id)
             if (idx !== -1) globalMemories.value[idx] = memory
             return memory
@@ -83,7 +100,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            await api.deleteGlobalMemory(id)
+            await api.deleteGlobalMemory(id, currentPrincipalId())
             globalMemories.value = globalMemories.value.filter((m) => m.id !== id)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to delete memory.'
@@ -97,7 +114,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.replaceGlobalMemory(id, data)
+            const memory = await api.replaceGlobalMemory(id, currentPrincipalId(), data)
             const idx = globalMemories.value.findIndex((m) => m.id === id)
             if (idx !== -1) globalMemories.value[idx] = memory
             return memory
@@ -115,7 +132,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         loadingAgent.value = true
         error.value = null
         try {
-            agentMemories.value = await api.getAgentMemories(agentId, type)
+            agentMemories.value = await api.getAgentMemories(agentId, currentPrincipalId(), type)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to load agent memories.'
         } finally {
@@ -127,7 +144,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.createAgentMemory(agentId, data)
+            const memory = await api.createAgentMemory(agentId, currentPrincipalId(), data)
             agentMemories.value.push(memory)
             return memory
         } catch (e) {
@@ -146,7 +163,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.updateAgentMemory(agentId, memoryId, data)
+            const memory = await api.updateAgentMemory(agentId, memoryId, currentPrincipalId(), data)
             const idx = agentMemories.value.findIndex((m) => m.id === memoryId)
             if (idx !== -1) agentMemories.value[idx] = memory
             return memory
@@ -162,7 +179,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            await api.deleteAgentMemory(agentId, memoryId)
+            await api.deleteAgentMemory(agentId, memoryId, currentPrincipalId())
             agentMemories.value = agentMemories.value.filter((m) => m.id !== memoryId)
         } catch (e) {
             error.value = e instanceof ApiError ? e.message : 'Failed to delete agent memory.'
@@ -180,7 +197,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         saving.value = true
         error.value = null
         try {
-            const memory = await api.replaceAgentMemory(agentId, memoryId, data)
+            const memory = await api.replaceAgentMemory(agentId, memoryId, currentPrincipalId(), data)
             const idx = agentMemories.value.findIndex((m) => m.id === memoryId)
             if (idx !== -1) agentMemories.value[idx] = memory
             return memory
@@ -195,7 +212,7 @@ export const useMemoriesStore = defineStore('memories', () => {
     async function reorderGlobalMemories(orderedIds: string[]): Promise<void> {
         error.value = null
         try {
-            await api.reorderGlobalMemories(orderedIds)
+            await api.reorderGlobalMemories(currentPrincipalId(), orderedIds)
             const ordered = orderedIds
                 .map((id) => globalMemories.value.find((m) => m.id === id))
                 .filter((m): m is MemoryResource => m !== undefined)
@@ -209,7 +226,7 @@ export const useMemoriesStore = defineStore('memories', () => {
     async function reorderAgentMemories(agentId: number, orderedIds: string[]): Promise<void> {
         error.value = null
         try {
-            await api.reorderAgentMemories(agentId, orderedIds)
+            await api.reorderAgentMemories(agentId, currentPrincipalId(), orderedIds)
             const ordered = orderedIds
                 .map((id) => agentMemories.value.find((m) => m.id === id))
                 .filter((m): m is MemoryResource => m !== undefined)

@@ -52,7 +52,7 @@ export interface PluginHostContext {
      * still need to be opened here, as the PHP controllers return them).
      */
     api: {
-        get: <T = unknown>(path: string) => Promise<T>
+        get: <T = unknown>(path: string, query?: Record<string, unknown>) => Promise<T>
         post: <T = unknown>(path: string, body: unknown) => Promise<T>
         put: <T = unknown>(path: string, body: unknown) => Promise<T>
         patch: <T = unknown>(path: string, body: unknown) => Promise<T>

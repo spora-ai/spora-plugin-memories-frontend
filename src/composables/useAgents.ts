@@ -4,46 +4,49 @@
  * The host's `useAgentStore` reaches for a global Pinia instance the
  * plugin can't safely share. We replace it with this singleton-style
  * composable that:
- *   - lazily fetches the `/agents` list once on first `fetchAgents()` call
- *   - caches the result in a module-level `ref`, matching the host's
- *     behavior (so `MemorySidebar` keeps seeing the same `agents`
- *     between renders)
- *   - routes requests through the host's typed REST client
+ *   - fetches the `/agents` list, optionally filtered by one or more
+ *     principal ids (`fetchAgents([myPrincipal, groupPrincipal])`
+ *     returns the union of agents owned by either principal). The
+ *     filter is forwarded as `?principal_id=N&principal_id=M` exactly
+ *     the way the host's `useAgentStore` does it (per
+ *     `AgentFilterParser::parsePrincipalIds` in spora-core).
+ *   - caches the LAST fetched list in a module-level ref so the page
+ *     keeps seeing the same `agents` value across renders and between
+ *     principal switches until a fresh fetch lands.
+ *   - routes requests through the host's typed REST client.
  *
  * The composable's signature (`{ agents, fetchAgents }`) mirrors
  * `useAgentStore` so the page components can swap stores with a
- * one-line import change.
+ * one-line import change. Passing a `null` reset re-fetches without
+ * a filter — useful when the operator switches back to "show every
+ * agent I'm entitled to".
  */
 import { ref, type Ref } from 'vue'
 import type { AgentSummary } from '../types'
-import { getApi } from '../api/client'
+import { listAgents } from '../api/agents'
 
 const _agents: Ref<AgentSummary[]> = ref<AgentSummary[]>([])
-let _fetched = false
 let _inFlight: Promise<void> | null = null
 
 export interface UseAgentsComposable {
     agents: Ref<AgentSummary[]>
-    fetchAgents: () => Promise<void>
+    /**
+     * @param principalIds Single-id filter or array of principal ids to
+     *     intersect with `/agents` on. `null`/`undefined` requests the
+     *     full visible-agent list. Re-fetches even when the same id is
+     *     passed twice — the caller drives freshness, not us.
+     */
+    fetchAgents: (principalIds?: number[] | null) => Promise<void>
 }
 
 export function useAgents(): UseAgentsComposable {
     return {
         agents: _agents,
-        fetchAgents: async (): Promise<void> => {
-            if (_fetched) return
+        fetchAgents: async (principalIds?: number[] | null): Promise<void> => {
             if (_inFlight !== null) return _inFlight
             _inFlight = (async () => {
                 try {
-                    const api = getApi()
-                    // The host's `/agents` endpoint returns either the bare
-                    // array (`Agent[]`) or a `{ agents: Agent[] }` envelope,
-                    // depending on the controller version. Accept both.
-                    const response = await api.get<AgentSummary[] | { agents: AgentSummary[] }>('/agents')
-                    _agents.value = Array.isArray(response)
-                        ? response
-                        : response.agents
-                    _fetched = true
+                    _agents.value = await listAgents(principalIds ?? null)
                 } finally {
                     _inFlight = null
                 }
@@ -59,6 +62,5 @@ export function useAgents(): UseAgentsComposable {
  */
 export function __resetAgentsForTesting(): void {
     _agents.value = []
-    _fetched = false
     _inFlight = null
 }

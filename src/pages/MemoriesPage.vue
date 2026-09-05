@@ -38,6 +38,16 @@ import { HOST_CONTEXT_KEY, type PluginHostContext } from '../shims'
  * principal chip row, agent dropdown) are now here and in
  * `DocumentsPanel`.
  *
+ * **Principal → scope flow.** When `principalsStore.selectedPrincipalId`
+ * changes, we (a) refetch `agents` filtered by that principal so the
+ * dropdown can only ever show agents the caller owns under the active
+ * scope, (b) if the active agent was scoped to the previous principal
+ * and is no longer in the filtered set, switch back to Global mode,
+ * and (c) reload the active list so global/agent reads honour the new
+ * `?principal_id=`. The store itself threads `selectedPrincipalId`
+ * onto every memory API call so the memoised chip selection drives
+ * reads/writes with no extra plumbing on the call sites.
+ *
  * Diff from host `pages/MemoriesPage.vue`: this plugin renders an
  * inline `Brain` button for mobile menu instead of the host's
  * `<Icon name="menu">`, since plugins don't share the host's icon
@@ -184,7 +194,7 @@ watch(
     async ([newName], [prevName]) => {
         if (newName === prevName) return
         selectedType.value = null
-        await fetchAgents()
+        await fetchAgents(principalIdsForActiveScope())
         loadActiveList(null)
     },
 )
@@ -193,7 +203,7 @@ onMounted(async () => {
     if (principalsStore.principals.length === 0) {
         await principalsStore.loadPrincipals()
     }
-    await fetchAgents()
+    await fetchAgents(principalIdsForActiveScope())
     if (isAgentMode.value && validAgentId.value !== null) {
         await store.loadAgentMemories(validAgentId.value)
     } else if (!isAgentMode.value) {
@@ -201,11 +211,44 @@ onMounted(async () => {
     }
 })
 
-watch(() => principalsStore.selectedPrincipalId, () => {
-    if (!isAgentMode.value) {
-        void store.loadGlobalMemories(selectedType.value ?? undefined)
-    }
-})
+/**
+ * Filter value passed to `fetchAgents` when the scope chip changes.
+ * Sends ONLY the active principal — group-mode only ever shows group-
+ * scoped agents, user-mode only shows user-scoped agents; that's the
+ * caller's mental model and what the user's bug report asks for.
+ */
+function principalIdsForActiveScope(): number[] | null {
+    const id = principalsStore.selectedPrincipalId
+    return id === null ? null : [id]
+}
+
+watch(
+    () => principalsStore.selectedPrincipalId,
+    async (nextId, prevId) => {
+        if (nextId === prevId) return
+
+        // 1. Re-fetch agents filtered for the new principal so the
+        //    dropdown reflects only the agents the caller can act as
+        //    under the chosen scope.
+        const filters: number[] | null = nextId === null ? null : [nextId]
+        await fetchAgents(filters)
+
+        // 2. If we're in agent mode but the active agent no longer
+        //    belongs to the new principal, fall back to Global so the
+        //    page doesn't strand the operator on an invisible row.
+        if (isAgentMode.value && validAgentId.value !== null) {
+            const stillVisible = agents.value.some((a) => a.id === validAgentId.value)
+            if (!stillVisible) {
+                void router.push({ name: 'global-memories' })
+                // loadActiveList will be invoked by the route watcher.
+                return
+            }
+        }
+
+        // 3. Reload the active list scoped to the new principal.
+        loadActiveList(selectedType.value)
+    },
+)
 </script>
 
 <template>
