@@ -7,14 +7,15 @@ import type {
     MemoryResource,
     CreateMemoryDto,
     UpdateMemoryDto,
-    ReplaceMemoryDto,
     MemoryType,
 } from '../types'
 import type { PluginHostContext } from '../shims'
 
 /**
- * Memory editor — used by both Global and Agent memories to create,
- * edit, or surgical-replace a memory body.
+ * Memory editor — used by both Global and Agent memories to create or
+ * edit a memory body. The header (Name, Type, Summary) sits above a
+ * `md-editor-v3` Markdown pane; Save / Delete / Cancel buttons live
+ * below it.
  *
  * Differs from the host-side
  * `spora-frontend/src/apps/memories/components/MemoryEditor.vue`:
@@ -30,9 +31,10 @@ import type { PluginHostContext } from '../shims'
  *     minus `github`/`mermaid`/`formula` (we don't ship diagrams/LaTeX
  *     in memories content). Locale is pinned to `en-US`.
  *
- * Action buttons emit `save(data)` / `delete()` / `cancel()` /
- * `replace(data)` — the caller decides which path to wire based on
- * the form's mode (full save vs surgical edit).
+ * Action buttons emit `save(data)` / `delete()` / `cancel()`. The
+ * earlier `replace` emit (surgical-edit substring replacement) was
+ * removed as part of the Idea 1 redesign; the editor is now strictly
+ * a save-or-cancel surface.
  */
 
 // Hoisted to a named alias so the `'-'` separator is declared once instead of
@@ -78,7 +80,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     save: [data: CreateMemoryDto | UpdateMemoryDto]
-    replace: [data: ReplaceMemoryDto]
     delete: []
     cancel: []
 }>()
@@ -87,10 +88,6 @@ const name = ref('')
 const type = ref<MemoryType>('context')
 const summary = ref('')
 const content = ref('')
-
-const showSurgicalEdit = ref(false)
-const findText = ref('')
-const newText = ref('')
 
 const insertingMedia = ref(false)
 const mediaError = ref<string | null>(null)
@@ -102,9 +99,6 @@ watch(
         type.value = m?.type ?? 'context'
         summary.value = m?.summary ?? ''
         content.value = m?.content ?? ''
-        showSurgicalEdit.value = false
-        findText.value = ''
-        newText.value = ''
         mediaError.value = null
     },
     { immediate: true },
@@ -112,7 +106,6 @@ watch(
 
 const isEditing = computed(() => props.memory != null)
 const canSubmitSave = computed(() => !props.saving && name.value.trim().length > 0)
-const canSubmitReplace = computed(() => !props.saving && findText.value.length > 0 && newText.value.length > 0)
 
 // Per-instance id scope so multiple MemoryEditor instances never collide
 // on `memory-name` / `memory-summary` / `memory-content` (web:S1117).
@@ -121,20 +114,8 @@ const nameId = `${idScope}-memory-name`
 const typeId = `${idScope}-memory-type`
 const summaryId = `${idScope}-memory-summary`
 const contentId = `${idScope}-memory-content`
-const findId = `${idScope}-memory-find`
-const newTextId = `${idScope}-memory-newtext`
 
 async function handleSubmit(): Promise<void> {
-    if (showSurgicalEdit.value && isEditing.value) {
-        const data: ReplaceMemoryDto = {
-            name: name.value.trim(),
-            type: type.value,
-            find: findText.value,
-            new_text: newText.value,
-        }
-        emit('replace', data)
-        return
-    }
     const data: CreateMemoryDto | UpdateMemoryDto = {
         name: name.value.trim(),
         type: type.value,
@@ -178,45 +159,46 @@ async function handleAttachMedia(): Promise<void> {
 </script>
 
 <template>
-    <div class="max-w-2xl">
+    <div class="max-w-3xl">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-lg font-semibold">{{ isEditing ? 'Edit Memory' : 'New Memory' }}{{ agentName ? ` for ${agentName}` : '' }}</h2>
             <button
-                class="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 type="button"
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 @click="$emit('cancel')"
             >
-                <X class="w-4 h-4" />
+                <X class="h-4 w-4" />
             </button>
         </div>
 
         <form class="space-y-4" @submit.prevent="handleSubmit">
-            <div>
-                <label :for="nameId" class="block text-sm font-medium mb-1.5">Name <span class="text-destructive">*</span></label>
-                <input
-                    :id="nameId"
-                    v-model="name"
-                    type="text"
-                    required
-                    placeholder="e.g. user_preferences, project_context"
-                    class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+            <div class="grid grid-cols-[3fr_1fr] gap-3">
+                <div>
+                    <label :for="nameId" class="mb-1.5 block text-sm font-medium">Name <span class="text-destructive">*</span></label>
+                    <input
+                        :id="nameId"
+                        v-model="name"
+                        type="text"
+                        required
+                        placeholder="e.g. user_preferences, project_context"
+                        class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                    />
+                </div>
+                <div>
+                    <label :for="typeId" class="mb-1.5 block text-sm font-medium">Type <span class="text-destructive">*</span></label>
+                    <select
+                        :id="typeId"
+                        v-model="type"
+                        required
+                        class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                        <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                    </select>
+                </div>
             </div>
 
             <div>
-                <label :for="typeId" class="block text-sm font-medium mb-1.5">Type <span class="text-destructive">*</span></label>
-                <select
-                    :id="typeId"
-                    v-model="type"
-                    required
-                    class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                    <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-                </select>
-            </div>
-
-            <div>
-                <label :for="summaryId" class="block text-sm font-medium mb-1.5">Summary</label>
+                <label :for="summaryId" class="mb-1.5 block text-sm font-medium">Summary</label>
                 <input
                     :id="summaryId"
                     v-model="summary"
@@ -228,22 +210,22 @@ async function handleAttachMedia(): Promise<void> {
             </div>
 
             <div>
-                <div class="flex items-center justify-between mb-1.5">
-                    <label :for="contentId" class="block text-sm font-medium">Content <span class="text-muted-foreground text-xs">(Markdown)</span></label>
+                <div class="mb-1.5 flex items-center justify-between">
+                    <label :for="contentId" class="block text-sm font-medium">Content <span class="text-xs text-muted-foreground">(Markdown)</span></label>
                     <button
                         type="button"
                         class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
                         :disabled="insertingMedia"
                         @click="handleAttachMedia"
                     >
-                        <ImageIcon class="w-3.5 h-3.5" />
+                        <ImageIcon class="h-3.5 w-3.5" />
                         {{ insertingMedia ? 'Opening…' : 'Attach media' }}
                     </button>
                 </div>
                 <MdEditor
                     :id="contentId"
                     :model-value="content"
-                    :rows="12"
+                    :rows="16"
                     :placeholder="'Memory content in Markdown format...'"
                     :theme="theme ?? 'light'"
                     :language="MEMORY_LOCALE"
@@ -252,56 +234,16 @@ async function handleAttachMedia(): Promise<void> {
                     mode="full"
                     @update:model-value="content = $event"
                 />
-                <p v-if="mediaError" class="text-xs text-destructive mt-1">{{ mediaError }}</p>
+                <p v-if="mediaError" class="mt-1 text-xs text-destructive">{{ mediaError }}</p>
             </div>
 
-            <div v-if="isEditing" class="rounded-lg border border-border bg-card p-3">
-                <button
-                    type="button"
-                    class="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    @click="showSurgicalEdit = !showSurgicalEdit"
-                >
-                    <span>{{ showSurgicalEdit ? '▾' : '▸' }}</span>
-                    Surgical edit
-                </button>
-                <p v-if="!showSurgicalEdit" class="text-xs text-muted-foreground mt-1 ml-5">
-                    Replace a single substring inside the body without rewriting the whole document.
-                </p>
-                <div v-else class="mt-3 space-y-3">
-                    <div>
-                        <label :for="findId" class="block text-xs font-medium mb-1">Find</label>
-                        <input
-                            :id="findId"
-                            v-model="findText"
-                            type="text"
-                            placeholder="Exact substring to replace"
-                            class="w-full h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                        />
-                    </div>
-                    <div>
-                        <label :for="newTextId" class="block text-xs font-medium mb-1">New text</label>
-                        <textarea
-                            :id="newTextId"
-                            v-model="newText"
-                            rows="3"
-                            placeholder="Replacement text"
-                            class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-3 pt-2">
+            <div class="flex items-center gap-3 border-t border-border pt-4">
                 <button
                     type="submit"
-                    :disabled="showSurgicalEdit ? !canSubmitReplace : !canSubmitSave"
+                    :disabled="!canSubmitSave"
                     class="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {{ saving
-                        ? 'Saving…'
-                        : (showSurgicalEdit
-                            ? 'Replace'
-                            : (isEditing ? 'Save Changes' : 'Create Memory')) }}
+                    {{ saving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Memory') }}
                 </button>
 
                 <button
@@ -321,6 +263,7 @@ async function handleAttachMedia(): Promise<void> {
                 >
                     Cancel
                 </button>
+                <span class="ml-auto text-xs text-muted-foreground">Saved locally · press ⌘S</span>
             </div>
         </form>
     </div>

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { createRouter, createMemoryHistory } from 'vue-router'
 import MemoriesPage from './pages/MemoriesPage.vue'
-import GlobalMemoriesPage from './pages/GlobalMemoriesPage.vue'
-import AgentMemoriesPage from './pages/AgentMemoriesPage.vue'
 import './style.css'
 
 /**
  * App.vue — plugin-local router setup + entry component.
  *
- * The plugin-local router resolves:
- *   `/`                        → GlobalMemoriesPage  (name: 'global-memories')
- *   `/agents/:id`              → AgentMemoriesPage   (name: 'agent-memories')
- *   `/agents/:id/:memoryId`    → AgentMemoriesPage   (edit mode when the
- *                               matching `memoryId` corresponds to a row
- *                               in `agentMemories`)
+ * Both route names resolve to the same `MemoriesPage` component.
+ * `MemoriesPage` branches on `route.name` to switch between the
+ * `global` and `agent` modes, and on `route.params.id` to pick the
+ * active agent. This consolidation replaces the old
+ * `MemorySidebar` + `GlobalMemoriesPage` + `AgentMemoriesPage`
+ * tree — type-filter chips now live inside the page's
+ * `DocumentsPanel`, so a router-children layout was no longer
+ * needed.
  *
  * `createMemoryHistory` keeps the URLs in JavaScript rather than the
  * browser address bar. The host SPA renders this bundle under
@@ -23,8 +23,8 @@ import './style.css'
  * `main.ts → SporaApp` calls `app.use(localRouter)` before mounting, so
  * `useRoute()`/`useRouter()` resolve to the local router for the
  * duration of the slot. `hostContext` is provided via `provide(...)`
- * so descendants (`MemoryEditor`, the two pages) can inject it
- * without prop-drilling.
+ * so descendants (`MemoryEditor`, the pages) can inject it without
+ * prop-drilling.
  *
  * Defining the router here (not in `main.ts`) keeps the entry's only
  * job to plugin mounting/unmounting.
@@ -40,17 +40,12 @@ const router = createRouter({
         {
             path: '/',
             name: 'global-memories',
-            component: GlobalMemoriesPage,
+            component: MemoriesPage,
         },
         {
             path: '/agents/:id',
             name: 'agent-memories',
-            component: AgentMemoriesPage,
-        },
-        {
-            path: '/agents/:id/:memoryId',
-            name: 'agent-memories-detail',
-            component: AgentMemoriesPage,
+            component: MemoriesPage,
         },
     ],
 })

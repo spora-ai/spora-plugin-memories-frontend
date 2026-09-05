@@ -7,8 +7,8 @@
  * `tests/setup.ts` so happy-dom doesn't try to load CodeMirror 6.
  *
  * Covers the v2 surface: type select, attach-media via the host's
- * `openMediaPicker`, and the surgical-edit disclosure that emits
- * `replace` instead of `save`.
+ * `openMediaPicker`. The earlier `find` / `new_text` surgical-edit
+ * disclosure has been removed as part of the Idea 1 redesign.
  */
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi } from 'vitest'
@@ -103,6 +103,28 @@ describe('MemoryEditor', () => {
         const select = wrapper.find('select')
         expect((select.element as HTMLSelectElement).value).toBe('plan')
     })
+
+    it('layouts the Name input wider than the Type select (3fr _ 1fr)', () => {
+        const wrapper = mount(MemoryEditor, { props: {} })
+        const grid = wrapper.find('div.grid.grid-cols-\\[3fr_1fr\\]')
+        expect(grid.exists()).toBe(true)
+        const children = grid.element.children
+        expect(children.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('exposes submit + delete + cancel buttons in edit mode and emits each when clicked', async () => {
+        const memory = createMemory()
+        const onDelete = vi.fn()
+        const onCancel = vi.fn()
+        const wrapper = mount(MemoryEditor, {
+            props: { memory, onDelete, onCancel },
+        })
+        await wrapper.find('button[type="submit"]').trigger('click')
+        await wrapper.findAll('button').find((b) => b.text() === 'Delete')!.trigger('click')
+        await wrapper.findAll('button').find((b) => b.text() === 'Cancel')!.trigger('click')
+        expect(onDelete).toHaveBeenCalled()
+        expect(onCancel).toHaveBeenCalled()
+    })
 })
 
 describe('MemoryEditor — media picker integration', () => {
@@ -144,68 +166,5 @@ describe('MemoryEditor — media picker integration', () => {
         const attachBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Attach media'))
         expect(attachBtn).toBeDefined()
         await expect(attachBtn!.trigger('click')).resolves.not.toThrow()
-    })
-})
-
-describe('MemoryEditor — surgical replace', () => {
-    it('hides the replace inputs in create mode', () => {
-        const wrapper = mount(MemoryEditor, { props: {} })
-        expect(wrapper.text()).not.toContain('Exact substring to replace')
-    })
-
-    it('shows the disclosure in edit mode and emits replace with name/type/find/new_text', async () => {
-        const onReplace = vi.fn()
-        const wrapper = mount(MemoryEditor, {
-            props: {
-                memory: createMemory({ name: 'plan_v1', type: 'plan' }),
-                onReplace,
-            },
-        })
-        const disclosureToggle = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Surgical edit'))
-        expect(disclosureToggle).toBeDefined()
-        await disclosureToggle!.trigger('click')
-        await flushPromises()
-        const findInput = wrapper.find('input[placeholder="Exact substring to replace"]')
-        const newTextArea = wrapper.find('textarea[placeholder="Replacement text"]')
-        expect(findInput.exists()).toBe(true)
-        expect(newTextArea.exists()).toBe(true)
-        await findInput.setValue('old section')
-        await newTextArea.setValue('new section')
-        await wrapper.find('form').trigger('submit')
-        expect(onReplace).toHaveBeenCalledWith({
-            name: 'plan_v1',
-            type: 'plan',
-            find: 'old section',
-            new_text: 'new section',
-        })
-        expect(wrapper.emitted('save') ?? []).toHaveLength(0)
-    })
-
-    it('switches the submit button text to "Replace" when the disclosure is open', async () => {
-        const wrapper = mount(MemoryEditor, {
-            props: { memory: createMemory() },
-        })
-        const disclosureToggle = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Surgical edit'))
-        await disclosureToggle!.trigger('click')
-        await flushPromises()
-        const submit = wrapper.find('button[type="submit"]')
-        expect(submit.text()).toBe('Replace')
-    })
-
-    it('disables the submit button until both find and new_text are filled', async () => {
-        const wrapper = mount(MemoryEditor, {
-            props: { memory: createMemory() },
-        })
-        const disclosureToggle = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Surgical edit'))
-        await disclosureToggle!.trigger('click')
-        await flushPromises()
-        const findInput = wrapper.find('input[placeholder="Exact substring to replace"]')
-        const newTextArea = wrapper.find('textarea[placeholder="Replacement text"]')
-        const submit = wrapper.find('button[type="submit"]') as unknown as { element: HTMLButtonElement }
-        expect(submit.element.disabled).toBe(true)
-        await findInput.setValue('a')
-        expect(submit.element.disabled).toBe(true)
-        await newTextArea.setValue('b')
-        expect(submit.element.disabled).toBe(false)
     })
 })
