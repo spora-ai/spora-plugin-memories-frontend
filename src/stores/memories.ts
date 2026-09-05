@@ -12,6 +12,16 @@ import * as api from '../api/memories'
 import { usePrincipalsStore } from './principals'
 
 /**
+ * Resolve the active principal id lazily from the principals store.
+ * Lives at module scope so SonarCloud's S7721 doesn't ask us to
+ * hoist it out of every action — it's a closure-free one-liner
+ * and the stateful binding happens through Pinia at call time.
+ */
+function currentPrincipalId(): number | null {
+    return usePrincipalsStore().selectedPrincipalId
+}
+
+/**
  * Manages global and agent-scoped memories with CRUD, reorder, and
  * surgical-edit operations.
  *
@@ -40,16 +50,6 @@ export const useMemoriesStore = defineStore('memories', () => {
     const loadingAgent = ref(false)
     const saving = ref(false)
     const error = ref<string | null>(null)
-
-    /**
-     * Lazily resolve the principal id from the principals store. The
-     * store is bound to the Pinia instance at use-site; resolving
-     * inside each action (rather than at module-init) avoids an init-
-     * order cycle between the principals store and this one.
-     */
-    function currentPrincipalId(): number | null {
-        return usePrincipalsStore().selectedPrincipalId
-    }
 
     // Global memories
 

@@ -293,7 +293,7 @@ export function createMockApi(): PluginHostContext['api'] {
  */
 function parseAgentsPathQuery(path: string): number[] | null {
     const match = /^\/agents(?:\?(.+))?$/.exec(path)
-    if (!match || !match[1]) return null
+    if (match?.[1] === undefined) return null
     return parsePrincipalIdList(new URLSearchParams(match[1]))
 }
 
@@ -305,6 +305,19 @@ function parseAgentsPathQuery(path: string): number[] | null {
  */
 function isPrincipalFilter(ids: number[] | null | undefined): ids is number[] {
     return Array.isArray(ids) && ids.length > 0
+}
+
+/**
+ * Module-scope wrapper around `AGENTS_WITH_PRINCIPAL` for the dev
+ * mock. Hoisted out of `createMockApi()` so SonarCloud S7721 stops
+ * asking for it; closure-captured state in the dev mock is just
+ * the fixture rows.
+ */
+function listAgentsScoped(principalIds: number[] | null): AgentSummary[] {
+    const rows = isPrincipalFilter(principalIds)
+        ? AGENTS_WITH_PRINCIPAL.filter((a) => principalIds.includes(a.principal_id))
+        : AGENTS_WITH_PRINCIPAL
+    return rows.map((a) => ({ id: a.id, name: a.name }))
 }
 
 function listGlobal(type?: MemoryType, principalIds?: number[] | null): MemoryResource[] {
@@ -327,11 +340,8 @@ function listGlobal(type?: MemoryType, principalIds?: number[] | null): MemoryRe
         return found
     }
 
-    function listAgentsMock(principalIds?: number[] | null): AgentSummary[] {
-        const filtered = principalIds === null || principalIds === undefined
-            ? AGENTS_WITH_PRINCIPAL
-            : AGENTS_WITH_PRINCIPAL.filter((a) => principalIds.includes(a.principal_id))
-        return filtered.map((a) => ({ id: a.id, name: a.name }))
+    function listAgentsMock(principalIds: number[] | null): AgentSummary[] {
+        return listAgentsScoped(principalIds)
     }
 
     function replaceMemoryContent(idx: number, input: ReplaceableBody): void {
