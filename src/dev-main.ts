@@ -18,10 +18,12 @@
  */
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import App from './App.vue'
-import type { PluginHostContext } from './shims'
+import MemoriesPage from './pages/MemoriesPage.vue'
+import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
 import { setApi } from './api/client'
-import { createMockApi } from './dev-mock'
+import { createMockApi, createMockOpenMediaPicker } from './dev-mock'
 
 // One-line banner so the developer knows they're in sandbox mode and
 // doesn't waste time wondering why their real backend isn't responding.
@@ -39,12 +41,33 @@ const hostContext: PluginHostContext = {
         push: async () => undefined,
         currentRoute: { value: { path: '/apps/memories' } },
     },
+    openMediaPicker: createMockOpenMediaPicker(),
 }
+
+// Plugin-local router mirroring the production slot — without
+// `app.use(router)` the `useRoute()` inject keys are missing and
+// `MemoriesPage` emits `[Vue warn]: injection "Symbol(route
+// location)" not found`. Same route names as `main.ts` so the page
+// behaves identically in both surfaces.
+const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+        { path: '/', name: 'global-memories', component: MemoriesPage },
+        { path: '/agents/:id', name: 'agent-memories', component: MemoriesPage },
+    ],
+})
 
 const target = document.getElementById('app')
 if (target) {
     const app = createApp(App, { hostContext })
     app.use(createPinia())
+    app.use(router)
+    // Mirror `src/main.ts → mount()` so the dev sandbox presents the
+    // same Vue inject() tree as the production slot. Without this
+    // `MemoriesPage` (and `MemoryEditor`) `inject(HOST_CONTEXT_KEY)`
+    // resolved `undefined`, surfaced as `[Vue warn]: injection not
+    // found` and silently disabled "Attach media".
+    app.provide(HOST_CONTEXT_KEY, hostContext)
     app.config.globalProperties.$host = hostContext
     app.mount(target)
 }

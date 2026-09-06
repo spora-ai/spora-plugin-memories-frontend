@@ -8,7 +8,7 @@
  * and exercise the bridge that `api/memories.ts` builds on top of it.
  *
  * Coverage gain: src/api/memories.ts goes from 0% (every function was
- * mocked out by the store spec) to 100% — each of the 12 exports is
+ * mocked out by the store spec) to 100% — each of the 14 exports is
  * invoked against a stubbed `api.get/post/put/patch/delete` to verify
  * the path, body, and envelope unwrap match the PHP controllers.
  */
@@ -34,89 +34,179 @@ beforeEach(() => {
     setApi(api as unknown as PluginHostContext['api'])
 })
 
+const sampleGlobalId = '11111111-1111-7111-b012-111111111111'
+const sampleAgentId = '22222222-2222-7222-b012-222222222222'
+
 describe('api/memories → global CRUD', () => {
     it('getGlobalMemories unwraps the { memories: T[] } envelope', async () => {
-        api.get.mockResolvedValueOnce({ memories: [{ id: 1, name: 'g' }] })
-        const result = await memories.getGlobalMemories()
+        api.get.mockResolvedValueOnce({ memories: [{ id: sampleGlobalId, name: 'g' }] })
+        const result = await memories.getGlobalMemories(null)
         expect(api.get).toHaveBeenCalledWith('/memories')
-        expect(result).toEqual([{ id: 1, name: 'g' }])
+        expect(result).toEqual([{ id: sampleGlobalId, name: 'g' }])
+    })
+
+    it('getGlobalMemories appends ?type= when set', async () => {
+        api.get.mockResolvedValueOnce({ memories: [] })
+        await memories.getGlobalMemories(null, 'plan')
+        expect(api.get).toHaveBeenCalledWith('/memories?type=plan')
+    })
+
+    it('getGlobalMemories appends ?principal_id=N when set', async () => {
+        api.get.mockResolvedValueOnce({ memories: [] })
+        await memories.getGlobalMemories(99)
+        expect(api.get).toHaveBeenCalledWith('/memories?principal_id=99')
+    })
+
+    it('getGlobalMemories can combine principal_id and type filters', async () => {
+        api.get.mockResolvedValueOnce({ memories: [] })
+        await memories.getGlobalMemories(99, 'plan')
+        expect(api.get).toHaveBeenCalledWith('/memories?principal_id=99&type=plan')
     })
 
     it('getGlobalMemory unwraps the { memory: T } envelope', async () => {
-        api.get.mockResolvedValueOnce({ memory: { id: 7, name: 'single' } })
-        const result = await memories.getGlobalMemory(7)
-        expect(api.get).toHaveBeenCalledWith('/memories/7')
-        expect(result).toEqual({ id: 7, name: 'single' })
+        api.get.mockResolvedValueOnce({ memory: { id: sampleGlobalId, name: 'single' } })
+        const result = await memories.getGlobalMemory(sampleGlobalId, null)
+        expect(api.get).toHaveBeenCalledWith(`/memories/${sampleGlobalId}`)
+        expect(result).toEqual({ id: sampleGlobalId, name: 'single' })
+    })
+
+    it('getGlobalMemory honours principal_id', async () => {
+        api.get.mockResolvedValueOnce({ memory: { id: sampleGlobalId, principal_id: 99 } })
+        await memories.getGlobalMemory(sampleGlobalId, 99)
+        expect(api.get).toHaveBeenCalledWith(`/memories/${sampleGlobalId}?principal_id=99`)
     })
 
     it('createGlobalMemory POSTs to /memories and unwraps { memory: T }', async () => {
-        api.post.mockResolvedValueOnce({ memory: { id: 9, name: 'new' } })
-        const result = await memories.createGlobalMemory({ name: 'new', content: 'c' })
-        expect(api.post).toHaveBeenCalledWith('/memories', { name: 'new', content: 'c' })
-        expect(result).toEqual({ id: 9, name: 'new' })
+        api.post.mockResolvedValueOnce({ memory: { id: sampleGlobalId, name: 'new' } })
+        const result = await memories.createGlobalMemory(null, { name: 'new', type: 'context', content: 'c' })
+        expect(api.post).toHaveBeenCalledWith('/memories', { name: 'new', type: 'context', content: 'c' })
+        expect(result).toEqual({ id: sampleGlobalId, name: 'new' })
+    })
+
+    it('createGlobalMemory forwards principal_id on the URL', async () => {
+        api.post.mockResolvedValueOnce({ memory: { id: sampleGlobalId, name: 'new' } })
+        await memories.createGlobalMemory(99, { name: 'group-doc', type: 'context', content: 'c' })
+        expect(api.post).toHaveBeenCalledWith(
+            '/memories?principal_id=99',
+            { name: 'group-doc', type: 'context', content: 'c' },
+        )
     })
 
     it('updateGlobalMemory PUTs to /memories/:id and unwraps { memory: T }', async () => {
-        api.put.mockResolvedValueOnce({ memory: { id: 4, name: 'updated' } })
-        const result = await memories.updateGlobalMemory(4, { name: 'updated' })
-        expect(api.put).toHaveBeenCalledWith('/memories/4', { name: 'updated' })
-        expect(result).toEqual({ id: 4, name: 'updated' })
+        api.put.mockResolvedValueOnce({ memory: { id: sampleGlobalId, name: 'updated' } })
+        const result = await memories.updateGlobalMemory(sampleGlobalId, null, { name: 'updated' })
+        expect(api.put).toHaveBeenCalledWith(`/memories/${sampleGlobalId}`, { name: 'updated' })
+        expect(result).toEqual({ id: sampleGlobalId, name: 'updated' })
     })
 
     it('deleteGlobalMemory DELETEs /memories/:id', async () => {
         api.delete.mockResolvedValueOnce(undefined)
-        await memories.deleteGlobalMemory(4)
-        expect(api.delete).toHaveBeenCalledWith('/memories/4')
+        await memories.deleteGlobalMemory(sampleGlobalId, null)
+        expect(api.delete).toHaveBeenCalledWith(`/memories/${sampleGlobalId}`)
+    })
+
+    it('replaceGlobalMemory POSTs to /memories/:id/replace', async () => {
+        api.post.mockResolvedValueOnce({ memory: { id: sampleGlobalId, content: 'patched' } })
+        const result = await memories.replaceGlobalMemory(sampleGlobalId, null, {
+            name: 'n', type: 'context', find: 'old', new_text: 'new',
+        })
+        expect(api.post).toHaveBeenCalledWith(
+            `/memories/${sampleGlobalId}/replace`,
+            { name: 'n', type: 'context', find: 'old', new_text: 'new' },
+        )
+        expect(result).toEqual({ id: sampleGlobalId, content: 'patched' })
     })
 })
 
 describe('api/memories → agent CRUD', () => {
     it('getAgentMemories routes through /agents/:id/memories', async () => {
-        api.get.mockResolvedValueOnce({ memories: [{ id: 1, agent_id: 7 }] })
-        const result = await memories.getAgentMemories(7)
+        api.get.mockResolvedValueOnce({ memories: [{ id: sampleAgentId, agent_id: 7 }] })
+        const result = await memories.getAgentMemories(7, null)
         expect(api.get).toHaveBeenCalledWith('/agents/7/memories')
-        expect(result).toEqual([{ id: 1, agent_id: 7 }])
+        expect(result).toEqual([{ id: sampleAgentId, agent_id: 7 }])
+    })
+
+    it('getAgentMemories appends ?type= when set', async () => {
+        api.get.mockResolvedValueOnce({ memories: [] })
+        await memories.getAgentMemories(7, null, 'plan')
+        expect(api.get).toHaveBeenCalledWith('/agents/7/memories?type=plan')
+    })
+
+    it('getAgentMemories forwards principal_id', async () => {
+        api.get.mockResolvedValueOnce({ memories: [] })
+        await memories.getAgentMemories(7, 99)
+        expect(api.get).toHaveBeenCalledWith('/agents/7/memories?principal_id=99')
     })
 
     it('getAgentMemory routes through /agents/:id/memories/:memoryId', async () => {
-        api.get.mockResolvedValueOnce({ memory: { id: 5, agent_id: 7 } })
-        const result = await memories.getAgentMemory(7, 5)
-        expect(api.get).toHaveBeenCalledWith('/agents/7/memories/5')
-        expect(result).toEqual({ id: 5, agent_id: 7 })
+        api.get.mockResolvedValueOnce({ memory: { id: sampleAgentId, agent_id: 7 } })
+        const result = await memories.getAgentMemory(7, sampleAgentId, null)
+        expect(api.get).toHaveBeenCalledWith(`/agents/7/memories/${sampleAgentId}`)
+        expect(result).toEqual({ id: sampleAgentId, agent_id: 7 })
+    })
+
+    it('getAgentMemory forwards principal_id', async () => {
+        api.get.mockResolvedValueOnce({ memory: { id: sampleAgentId } })
+        await memories.getAgentMemory(7, sampleAgentId, 99)
+        expect(api.get).toHaveBeenCalledWith(`/agents/7/memories/${sampleAgentId}?principal_id=99`)
     })
 
     it('createAgentMemory POSTs to /agents/:id/memories', async () => {
-        api.post.mockResolvedValueOnce({ memory: { id: 11, agent_id: 7 } })
-        const result = await memories.createAgentMemory(7, { name: 'new', content: 'c' })
-        expect(api.post).toHaveBeenCalledWith('/agents/7/memories', { name: 'new', content: 'c' })
-        expect(result).toEqual({ id: 11, agent_id: 7 })
+        api.post.mockResolvedValueOnce({ memory: { id: sampleAgentId, agent_id: 7 } })
+        const result = await memories.createAgentMemory(7, null, { name: 'new', type: 'context', content: 'c' })
+        expect(api.post).toHaveBeenCalledWith(
+            '/agents/7/memories',
+            { name: 'new', type: 'context', content: 'c' },
+        )
+        expect(result).toEqual({ id: sampleAgentId, agent_id: 7 })
     })
 
     it('updateAgentMemory PUTs to /agents/:id/memories/:memoryId', async () => {
-        api.put.mockResolvedValueOnce({ memory: { id: 5, name: 'updated' } })
-        const result = await memories.updateAgentMemory(7, 5, { name: 'updated' })
-        expect(api.put).toHaveBeenCalledWith('/agents/7/memories/5', { name: 'updated' })
-        expect(result).toEqual({ id: 5, name: 'updated' })
+        api.put.mockResolvedValueOnce({ memory: { id: sampleAgentId, name: 'updated' } })
+        const result = await memories.updateAgentMemory(7, sampleAgentId, null, { name: 'updated' })
+        expect(api.put).toHaveBeenCalledWith(`/agents/7/memories/${sampleAgentId}`, { name: 'updated' })
+        expect(result).toEqual({ id: sampleAgentId, name: 'updated' })
     })
 
     it('deleteAgentMemory DELETEs /agents/:id/memories/:memoryId', async () => {
         api.delete.mockResolvedValueOnce(undefined)
-        await memories.deleteAgentMemory(7, 5)
-        expect(api.delete).toHaveBeenCalledWith('/agents/7/memories/5')
+        await memories.deleteAgentMemory(7, sampleAgentId, null)
+        expect(api.delete).toHaveBeenCalledWith(`/agents/7/memories/${sampleAgentId}`)
+    })
+
+    it('replaceAgentMemory POSTs to /agents/:id/memories/:memoryId/replace', async () => {
+        api.post.mockResolvedValueOnce({ memory: { id: sampleAgentId, content: 'patched' } })
+        const result = await memories.replaceAgentMemory(7, sampleAgentId, null, {
+            name: 'n', type: 'context', find: 'old', new_text: 'new',
+        })
+        expect(api.post).toHaveBeenCalledWith(
+            `/agents/7/memories/${sampleAgentId}/replace`,
+            { name: 'n', type: 'context', find: 'old', new_text: 'new' },
+        )
+        expect(result).toEqual({ id: sampleAgentId, content: 'patched' })
     })
 })
 
 describe('api/memories → reorder', () => {
     it('reorderGlobalMemories PATCHes /memories/reorder with { order }', async () => {
         api.patch.mockResolvedValueOnce(undefined)
-        await memories.reorderGlobalMemories([3, 1, 2])
-        expect(api.patch).toHaveBeenCalledWith('/memories/reorder', { order: [3, 1, 2] })
+        await memories.reorderGlobalMemories(null, [sampleGlobalId, sampleAgentId])
+        expect(api.patch).toHaveBeenCalledWith('/memories/reorder', { order: [sampleGlobalId, sampleAgentId] })
+    })
+
+    it('reorderGlobalMemories forwards principal_id', async () => {
+        api.patch.mockResolvedValueOnce(undefined)
+        await memories.reorderGlobalMemories(99, [sampleGlobalId])
+        expect(api.patch).toHaveBeenCalledWith(
+            '/memories/reorder?principal_id=99',
+            { order: [sampleGlobalId] },
+        )
     })
 
     it('reorderAgentMemories PATCHes /agents/:id/memories/reorder with { order }', async () => {
         api.patch.mockResolvedValueOnce(undefined)
-        await memories.reorderAgentMemories(7, [3, 1, 2])
-        expect(api.patch).toHaveBeenCalledWith('/agents/7/memories/reorder', { order: [3, 1, 2] })
+        await memories.reorderAgentMemories(7, null, [sampleAgentId])
+        expect(api.patch).toHaveBeenCalledWith('/agents/7/memories/reorder', { order: [sampleAgentId] })
     })
 })
 

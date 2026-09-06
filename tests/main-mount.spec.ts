@@ -102,6 +102,27 @@ describe('SporaApp (main.ts mount contract)', () => {
         expect(client.getApi()).toBe(hostContext.api)
     })
 
+    it('mount() provides HOST_CONTEXT_KEY without emitting injection-not-found warnings', async () => {
+        // Regression guard for the `Symbol(spora-memories-host-context)
+        // injection not found` warning. Without `app.provide(...)` the
+        // page silently lost access to hostContext, disabling
+        // "Attach media" and other host-only contracts.
+        const warnings: string[] = []
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+            warnings.push(args.map((a) => String(a)).join(' '))
+        })
+
+        const main = await import('../src/main')
+        const target = makeTarget()
+        const hostContext = makeHostContext()
+        await main.default.mount(target, hostContext)
+        await new Promise((r) => setTimeout(r, 0))
+        warnSpy.mockRestore()
+
+        const injectionWarnings = warnings.filter((m) => /\[Vue warn\]: injection /.test(m))
+        expect(injectionWarnings).toEqual([])
+    })
+
     it('unmount() removes the mounted Vue app from the DOM', async () => {
         const main = await import('../src/main')
         const target = makeTarget()

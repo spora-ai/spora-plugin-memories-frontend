@@ -33,7 +33,9 @@ vi.mock('md-editor-v3', async () => {
         // everything except modelValue/rows/disabled/placeholder, but
         // listing the rest here matches the surface our <MdEditor> uses
         // (see MemoryEditor.vue :theme, :language, :toolbars, :preview
-        // bindings).
+        // bindings). The stub also surfaces the `preview` prop as
+        // `data-md-preview-on` so tests can assert the editor's default
+        // preview state.
         props: [
             'modelValue',
             'theme',
@@ -54,6 +56,7 @@ vi.mock('md-editor-v3', async () => {
                 return h('textarea', {
                     'data-testid': 'md-editor-stub',
                     'data-md-editor': 'true',
+                    'data-md-preview-on': String(Boolean(props.preview)),
                     id: (props.id as string | undefined) ?? undefined,
                     value,
                     disabled: Boolean(props.disabled),

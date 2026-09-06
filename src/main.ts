@@ -2,10 +2,9 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import App from './App.vue'
-import GlobalMemoriesPage from './pages/GlobalMemoriesPage.vue'
-import AgentMemoriesPage from './pages/AgentMemoriesPage.vue'
+import MemoriesPage from './pages/MemoriesPage.vue'
 import { setApi } from './api/client'
-import type { PluginHostContext } from './shims'
+import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
 
 /**
  * Plugin mount/unmount contract.
@@ -17,7 +16,7 @@ import type { PluginHostContext } from './shims'
  *
  * Important: the plugin uses a *local* Pinia instance and a *local*
  * Vue Router instance (with `createMemoryHistory`, since we never
- * own the browser address bar). Plugin-only state (currently the
+ * own the browser address bar). Plugin-only state (the
  * `useMemoriesStore` reordering + view mode) lives here so it doesn't
  * pollute the host's stores. Host services (auth, theme) are reached
  * via the passed-in `hostContext.api` and `setApi(...)` initializes
@@ -46,21 +45,26 @@ const SporaApp: MountContract = {
 
         const app = createApp(App, { hostContext })
 
+        // Provide hostContext via Vue's inject API so `<script setup>`
+        // descendants (MemoryEditor, MemoriesPage) can
+        // `inject(HOST_CONTEXT_KEY)` without prop-drilling through
+        // every layer.
+        app.provide(HOST_CONTEXT_KEY, hostContext)
+
         // Plugin-local Pinia for plugin-only state.
         app.use(createPinia())
 
         // Plugin-local router. We re-declare the routes here (App.vue
         // builds its own copy of the same router; this one is the one
-        // `app.use(...)` installs). Mounting and unmounting a second
-        // instance of the same plugin under the same target re-creates
-        // the router — fine, because `createMemoryHistory()` keeps state
-        // in memory and the new slot starts blank.
+        // `app.use(...)` installs). Both route names resolve to
+        // `MemoriesPage` — the page branches on `route.name` to switch
+        // between global and agent modes, and on `route.params.id` to
+        // pick the active agent.
         const router = createRouter({
             history: createMemoryHistory(),
             routes: [
-                { path: '/', name: 'global-memories', component: GlobalMemoriesPage },
-                { path: '/agents/:id', name: 'agent-memories', component: AgentMemoriesPage },
-                { path: '/agents/:id/:memoryId', name: 'agent-memories-detail', component: AgentMemoriesPage },
+                { path: '/', name: 'global-memories', component: MemoriesPage },
+                { path: '/agents/:id', name: 'agent-memories', component: MemoriesPage },
             ],
         })
         app.use(router)

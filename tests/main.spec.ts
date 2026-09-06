@@ -84,10 +84,10 @@ describe('useAgents composable', () => {
 })
 
 describe('MemoryEditor (smoke)', () => {
-    it('emits save with the entered name', async () => {
+    it('emits save with the entered name and a default type', async () => {
         const wrapper = mount(MemoryEditor, { props: { scope: 'global' } })
         await wrapper.find('input[type="text"]').setValue('greeting')
         await wrapper.find('form').trigger('submit')
-        expect((wrapper.emitted('save') as unknown[][])[0]?.[0]).toMatchObject({ name: 'greeting' })
+        expect((wrapper.emitted('save') as unknown[][])[0]?.[0]).toMatchObject({ name: 'greeting', type: 'context' })
     })
 })
