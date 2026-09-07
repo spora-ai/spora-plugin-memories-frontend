@@ -198,3 +198,36 @@ describe('MemoryEditor — markdown preview default', () => {
         expect(wrapper.find('[data-testid="md-preview-stub"]').exists()).toBe(false)
     })
 })
+
+describe('MemoryEditor — XSS sanitization (B3)', () => {
+    // Memory bodies are user-controlled markdown stored on the
+    // backend; without DOMPurify wiring, md-editor-v3's default
+    // identity `sanitize` lets raw `<script>` tags reach the preview
+    // DOM. Regression: a body containing `<script>alert(1)</script>`
+    // must NOT survive the preview render.
+    //
+    // We can't assert DOMPurify's literal output here — the DOMPurify
+    // README explicitly warns that combining it with happy-dom
+    // (our Vitest env) is "currently not recommended and will
+    // likely lead to XSS" because happy-dom's HTML parser doesn't
+    // match a real browser. Instead, we assert the wiring contract:
+    // the editor must pass a `:sanitize` function that is NOT the
+    // identity mapping (`(html) => html`). md-editor-v3's default
+    // sanitize is exactly that identity mapping; replacing it with
+    // DOMPurify.sanitize is the only thing standing between a
+    // stored XSS payload and the preview DOM.
+    it('does not pass the identity mapping as the :sanitize prop', async () => {
+        const wrapper = mount(MemoryEditor, { props: {} })
+        const editor = wrapper.find('[data-testid="md-editor-stub"]')
+        // The stub calls `sanitize(\`<p>${value}</p>\`)` and exposes
+        // the result as `data-md-sanitized`. Wire DOMPurify.sanitize
+        // through with a body containing a <script> tag and assert
+        // the output is NOT equal to the raw wrapped input — the
+        // identity mapping would round-trip the input unchanged.
+        const body = 'before <script>alert(1)</script> after'
+        await wrapper.setProps({ memory: createMemory({ content: body }) })
+        const sanitized = editor.attributes('data-md-sanitized') ?? ''
+        const raw = `<p>${body}</p>`
+        expect(sanitized).not.toBe(raw)
+    })
+})

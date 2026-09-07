@@ -10,12 +10,17 @@ Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Compose
 
 ## What it surfaces
 
-The plugin's UI mirrors `spora-frontend/src/apps/memories/` (which it replaces):
+A sidebar-and-detail admin panel (`/apps/memories`) per user (global memories) and per agent (agent-scoped memories). The plugin's UI mirrors `spora-frontend/src/apps/memories/` (which it replaces):
 
-- **Global memories** — memories shared across every agent. Drag-to-reorder, create/edit with a Markdown editor, delete.
-- **Agent memories** — per-agent memory lists. The sidebar exposes a dropdown to flip between agents; the page shows the same CRUD + reorder affordances scoped to the selected agent.
-- **Markdown editor** — each memory's content body uses `md-editor-v3` (externalised at build time, shared with the host SPA so the toolbar styling and CodeMirror bundle aren't duplicated).
-- **Drag-to-reorder** — `vue-draggable-plus` drives the list ordering UI; reorder mutations PATCH back to the backend.
+- **Scope bar** — `PrincipalChipRow` toggles between the caller's user-principal and any group-principals they're a member of. Memory reads and writes are scoped to the active principal (`?principal_id=N`).
+- **Mode row** — segmented `Global` / `Agent: <name>` control. Selecting the agent pill in global mode routes to the first visible agent; in agent mode it opens a dropdown for fast switching.
+- **Documents panel** (sidebar) — type-filter chips (`All` / `Plans` / `Docs` / `Examples` / `Context`) live next to the list they filter. Drag-to-reorder persists via PATCH `/memories/reorder` (global) or PATCH `/agents/:id/memories/reorder` (agent).
+- **Memory editor** — Markdown body via `md-editor-v3` (externalised; shared with the host SPA). Edit-only by default (`:preview="false"`); the toolbar's preview button toggles between edit, split, and preview modes. `Attach media` opens the host's `openMediaPicker` and inserts `![](<asset_url>)` at end-of-content. Markdown is sanitised via DOMPurify before preview render.
+- **Routing** — both `/` (`global-memories`) and `/agents/:id` (`agent-memories/:id`) resolve to the same component; mode is derived from `route.name`, active agent from `route.params.id`, and the active memory from `?memory=<id>` or `?create=1`.
+
+## Document types
+
+Every memory is tagged with a `type` from the set `plan | documentation | examples | context` (mandatory on save/get/replace). The Documents panel exposes per-type filter chips; the list endpoints honour `?type=` for the same filter.
 
 ## Build
 

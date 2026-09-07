@@ -40,6 +40,7 @@ vi.mock('md-editor-v3', async () => {
             'modelValue',
             'theme',
             'preview',
+            'sanitize',
             'placeholder',
             'rows',
             'maxLength',
@@ -53,10 +54,15 @@ vi.mock('md-editor-v3', async () => {
         setup(props, { emit }) {
             return () => {
                 const value = (props.modelValue as string | null | undefined) ?? ''
+                const sanitize = props.sanitize as ((html: string) => string) | undefined
+                const rendered = typeof sanitize === 'function'
+                    ? sanitize(`<p>${value}</p>`)
+                    : `<p>${value}</p>`
                 return h('textarea', {
                     'data-testid': 'md-editor-stub',
                     'data-md-editor': 'true',
                     'data-md-preview-on': String(Boolean(props.preview)),
+                    'data-md-sanitized': rendered,
                     id: (props.id as string | undefined) ?? undefined,
                     value,
                     disabled: Boolean(props.disabled),

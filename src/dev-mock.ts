@@ -57,9 +57,10 @@ interface ReplaceableBody {
 }
 
 /**
- * `null` → path matched but no `?type=` filter supplied.
- * `undefined` → path did not match the route, dispatcher should
- *                fall through to the next candidate.
+ * `undefined` → path did not match `/memories(?…)?`, dispatcher
+ *                should fall through to the next candidate.
+ * Otherwise returns the parsed envelope; `type: null` means the path
+ * matched but no `?type=` filter was supplied.
  */
 function parseGlobalListQuery(path: string): { type: MemoryType | null; principalId: number[] | null } | undefined {
     const match = /^\/memories(?:\?(.+))?$/.exec(path)
@@ -392,7 +393,7 @@ export function createMockApi(): PluginHostContext['api'] {
 
         async post<T>(path: string, body: unknown): Promise<T> {
             const input = (body ?? {}) as ReplaceableBody
-            if (path.startsWith('/memories') && !path.includes('/replace')) {
+            if (path === '/memories') {
                 const memory = buildMemory(input, 'global', null, listGlobal().length)
                 memories.push(memory)
                 return { memory } as unknown as T
