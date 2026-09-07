@@ -197,7 +197,7 @@ watch(
             // Mode change: the type chip isn't meaningful across modes,
             // and the dropdown needs to be rebuilt under the active principal.
             selectedType.value = null
-            await fetchAgents(principalIdsForActiveScope())
+            await reloadAgentsForScope(principalsStore.selectedPrincipalId)
             loadActiveList(null)
             return
         }
@@ -209,7 +209,7 @@ onMounted(async () => {
     if (principalsStore.principals.length === 0) {
         await principalsStore.loadPrincipals()
     }
-    await fetchAgents(principalIdsForActiveScope())
+    await reloadAgentsForScope(principalsStore.selectedPrincipalId)
     if (isAgentMode.value && validAgentId.value !== null) {
         await store.loadAgentMemories(validAgentId.value)
     } else if (!isAgentMode.value) {
@@ -217,15 +217,20 @@ onMounted(async () => {
     }
 })
 
-/**
- * Filter value passed to `fetchAgents` when the scope chip changes.
- * Sends ONLY the active principal — group-mode only ever shows group-
- * scoped agents, user-mode only shows user-scoped agents; that's the
- * caller's mental model and what the user's bug report asks for.
- */
-function principalIdsForActiveScope(): number[] | null {
-    const id = principalsStore.selectedPrincipalId
-    return id === null ? null : [id]
+// Tracks the last principal scope an agents reload was performed for.
+// Both the principal-scope watcher (chip click) and the route watcher
+// (mode change triggered by an out-of-scope agent → Global push) call
+// `reloadAgentsForScope`; without this guard, switching principals while
+// in agent mode fires `fetchAgents` twice in quick succession. The
+// principal-scope watcher already owns the agents reload, so the route
+// watcher should skip when the new principal is the one we just loaded.
+let lastReloadedPrincipalId: number | null | undefined = undefined
+
+async function reloadAgentsForScope(principalId: number | null): Promise<void> {
+    if (lastReloadedPrincipalId === principalId) return
+    lastReloadedPrincipalId = principalId
+    const filters: number[] | null = principalId === null ? null : [principalId]
+    await fetchAgents(filters)
 }
 
 watch(
@@ -236,8 +241,7 @@ watch(
         // 1. Re-fetch agents filtered for the new principal so the
         //    dropdown reflects only the agents the caller can act as
         //    under the chosen scope.
-        const filters: number[] | null = nextId === null ? null : [nextId]
-        await fetchAgents(filters)
+        await reloadAgentsForScope(nextId)
 
         // 2. If we're in agent mode but the active agent no longer
         //    belongs to the new principal, fall back to Global so the

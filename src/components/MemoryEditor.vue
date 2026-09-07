@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, useId, watch } from 'vue'
 import { X, ImageIcon } from 'lucide-vue-next'
+import DOMPurify from 'dompurify'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import type {
@@ -134,9 +135,13 @@ async function handleSubmit(): Promise<void> {
 /**
  * Open the host's media picker and insert `![](<asset_url>)` at the
  * editor cursor. The host serves a controlled
- * `/api/v1/assets/<uuid>.<ext>` URL — we don't sanitise because the
- * picker only returns server-managed assets, and operators viewing
- * the body expect to see the same URL the picker would render.
+ * `/api/v1/assets/<uuid>.<ext>` URL — we don't sanitise the picked
+ * URL itself because the picker only returns server-managed assets,
+ * and operators viewing the body expect to see the same URL the
+ * picker would render. The rest of the markdown body is still
+ * sanitised at preview render time via DOMPurify (see `:sanitize`
+ * on `<MdEditor>` below); the trust boundary is the asset URL, not
+ * the surrounding text.
  *
  * `md-editor-v3` doesn't expose `insertText()` in the version we ship
  * (^6.5.4), so we fall back to appending at end-of-content. Future
@@ -237,6 +242,7 @@ async function handleAttachMedia(): Promise<void> {
                     :language="MEMORY_LOCALE"
                     :toolbars="MEMORY_EDITOR_TOOLBARS"
                     :preview="false"
+                    :sanitize="DOMPurify.sanitize"
                     mode="full"
                     @update:model-value="content = $event"
                 />
