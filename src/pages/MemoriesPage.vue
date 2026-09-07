@@ -191,11 +191,17 @@ watch(
 
 watch(
     () => [route.name, route.params.id],
-    async ([newName], [prevName]) => {
-        if (newName === prevName) return
-        selectedType.value = null
-        await fetchAgents(principalIdsForActiveScope())
-        loadActiveList(null)
+    async ([newName, newId], [prevName, prevId]) => {
+        if (newName === prevName && newId === prevId) return
+        if (newName !== prevName) {
+            // Mode change: the type chip isn't meaningful across modes,
+            // and the dropdown needs to be rebuilt under the active principal.
+            selectedType.value = null
+            await fetchAgents(principalIdsForActiveScope())
+            loadActiveList(null)
+            return
+        }
+        loadActiveList(selectedType.value)
     },
 )
 

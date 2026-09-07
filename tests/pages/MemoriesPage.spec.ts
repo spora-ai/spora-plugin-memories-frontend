@@ -381,6 +381,50 @@ describe('MemoriesPage — drag reorder dispatch', () => {
     })
 })
 
+describe('MemoriesPage — agent switching in the dropdown', () => {
+    it('reloads agent memories when the route.params.id changes between agents', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }, { id: 8, name: 'B' }]
+        mountPage()
+        await flushPromises()
+        loadAgentMemories.mockClear()
+        routeObj.params = { id: '8' }
+        await flushPromises()
+        expect(loadAgentMemories).toHaveBeenLastCalledWith(8, undefined)
+    })
+
+    it('preserves the active type chip when switching between agents', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }, { id: 8, name: 'B' }]
+        const wrapper = mountPage()
+        await flushPromises()
+        await wrapper.find('[data-testid="dp-chip-plan"]').trigger('click')
+        await flushPromises()
+        loadAgentMemories.mockClear()
+        routeObj.params = { id: '8' }
+        await flushPromises()
+        expect(loadAgentMemories).toHaveBeenLastCalledWith(8, 'plan')
+    })
+
+    it('does not call fetchAgents or reset the type chip when switching between agents', async () => {
+        routeObj.name = 'agent-memories'
+        routeObj.params = { id: '7' }
+        agentsRef.value = [{ id: 7, name: 'A' }, { id: 8, name: 'B' }]
+        const wrapper = mountPage()
+        await flushPromises()
+        await wrapper.find('[data-testid="dp-chip-plan"]').trigger('click')
+        await flushPromises()
+        fetchAgentsMock.mockClear()
+        loadAgentMemories.mockClear()
+        routeObj.params = { id: '8' }
+        await flushPromises()
+        expect(fetchAgentsMock).not.toHaveBeenCalled()
+        expect(wrapper.find('[data-testid="dp-chip-plan"]').exists()).toBe(true)
+    })
+})
+
 describe('MemoriesPage — editor routing', () => {
     it('renders the create view when ?create=1 is in the URL', async () => {
         routeObj.query = { create: '1' }
