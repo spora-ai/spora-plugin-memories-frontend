@@ -16,10 +16,10 @@ import type { MemoryResource, MemoryType } from '../types'
  * a specific chip filters to that type; clicking it again clears the
  * filter, mirroring the GitHub / Linear chip-toggle idiom.
  *
- * Drag-to-reorder is delegated to `vue-draggable-plus`; on drop the
- * panel emits `reorder` with the new id list and the page forwards it
- * into `useMemoriesStore().reorderGlobalMemories` /
- * `reorderAgentMemories` based on the active scope.
+ * Drag-to-reorder is delegated to `vue-draggable-plus`. The writable
+ * `localDocs` computed's setter is the sole source of the `reorder`
+ * event — a previous `@end` handler emitted the pre-PATCH server order
+ * and reverted the drag, see `DocumentsPanel.spec.ts`.
  */
 
 const TYPES: ReadonlyArray<{ value: MemoryType; label: string }> = [
@@ -141,7 +141,6 @@ function onChipClick(value: MemoryType | null): void {
                 :animation="180"
                 ghost-class="bg-muted/40"
                 handle=".drag-handle"
-                @end="emit('reorder', localDocs.map((m) => m.id))"
             >
                 <button
                     v-for="memory in localDocs"

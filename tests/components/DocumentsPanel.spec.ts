@@ -145,4 +145,19 @@ describe('DocumentsPanel', () => {
         const wrapper = mountPanel({ mode: 'agent' })
         expect(wrapper.find('aside').attributes('data-mode')).toBe('agent')
     })
+
+    it('emits exactly one `reorder` event with the dragged id order when v-model updates', async () => {
+        // Regression for "drag snaps back to original order": an
+        // earlier `@end` handler also fired and emitted the pre-PATCH
+        // server order, reverting the drag.
+        const documents = [mk({ id: 'a' }), mk({ id: 'b' }), mk({ id: 'c' })]
+        const wrapper = mountPanel({ documents })
+        const draggable = wrapper.findComponent({ name: 'VueDraggable' })
+
+        await draggable.vm.$emit('update:modelValue', [documents[2], documents[0], documents[1]])
+        expect(wrapper.emitted('reorder')).toEqual([[['c', 'a', 'b']]])
+
+        await draggable.vm.$emit('end')
+        expect(wrapper.emitted('reorder')).toEqual([[['c', 'a', 'b']]])
+    })
 })
