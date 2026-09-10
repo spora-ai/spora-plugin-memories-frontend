@@ -249,7 +249,7 @@ async function handleAttachMedia(): Promise<void> {
                 <p v-if="mediaError" class="mt-1 text-xs text-destructive">{{ mediaError }}</p>
             </div>
 
-            <div class="flex items-center gap-3 border-t border-border pt-4">
+            <div class="flex flex-wrap items-center gap-3 border-t border-border pt-4">
                 <button
                     type="submit"
                     :disabled="!canSubmitSave"

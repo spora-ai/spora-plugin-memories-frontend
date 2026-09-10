@@ -262,7 +262,7 @@ watch(
 </script>
 
 <template>
-    <div class="h-screen bg-background flex flex-col overflow-hidden">
+    <div class="min-h-screen bg-background flex flex-col">
         <div class="flex-1 flex">
             <!-- Mobile sidebar overlay -->
             <div
