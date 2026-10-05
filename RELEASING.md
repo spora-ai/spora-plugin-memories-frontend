@@ -39,7 +39,7 @@ spora-plugin-memories-frontend-v<VERSION>.tar.gz
 
 **Nothing else ships in the archive** — no source files, no `package.json`, no `node_modules`, no build configs. The release tarball is built explicitly from `frontend/` in the `build-and-release` workflow, and the `Verify only frontend/ is shipped` step in the same workflow fails the build if any non-`frontend/` path slips into the archive (deny-list + allow-list assertions).
 
-The installer in `spora-ai/installer` (any 1.x release) unpacks this tarball into `public/plugins/memories-frontend/` on the operator's host, so the host SPA's dynamic `import('/plugins/memories-frontend/main.js')` (per `registry.ts → mountPlugin`) finds the IIFE bundle at the path it expects. `style.css` is optional: when components don't ship `<style>` blocks, Vite doesn't emit it, the installer copies whatever's in `frontend/`, and the host's `PluginAppPage` auto-injects a `<link>` that 404s silently if the file is absent.
+The installer in `spora-ai/installer` (any 1.x release) unpacks this tarball into `public/plugins/memories/` on the operator's host, so the host SPA's dynamic `import('/plugins/memories/main.js')` (per `registry.ts → mountPlugin`) finds the IIFE bundle at the path it expects. `style.css` is optional: when components don't ship `<style>` blocks, Vite doesn't emit it, the installer copies whatever's in `frontend/`, and the host's `PluginAppPage` auto-injects a `<link>` that 404s silently if the file is absent.
 
 The versioned root is **load-bearing** — see "Why a versioned root directory" below.
 

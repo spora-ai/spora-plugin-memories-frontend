@@ -1,6 +1,6 @@
 # spora-plugin-memories-frontend
 
-Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Composer package of type `spora-plugin-frontend`; `spora-installer`'s `SporaPluginFrontendInstaller` copies this repo's `frontend/` directory into `public/plugins/spora-plugin-memories-frontend/` so the host SPA can lazy-load it via `/plugins/spora-plugin-memories-frontend/main.js`.
+Pre-built Vue SPA for the Spora **Memories** admin panel. Delivered as a Composer package of type `spora-plugin-frontend`; `spora-installer`'s `SporaPluginFrontendInstaller` copies this repo's `frontend/` directory into `public/plugins/memories/` (the parent plugin's `plugin.json#slug`, not this package's name) so the host SPA can lazy-load it via `/plugins/memories/main.js`.
 
 ## Why a separate repo from the PHP plugin?
 
@@ -38,7 +38,7 @@ The build output (`main.js` + `style.css`) is committed to this repo. Operators 
 npm run dev   # vite dev server on :5175
 ```
 
-The host SPA's `vite.config.ts` proxies `/plugins/spora-plugin-memories-frontend` to `:5175` so editing `src/*` updates the panel without rebuilding the host. The dev sandbox uses an in-memory mock API (`src/dev-mock.ts`) so it renders without the PHP backend — set `SPORA_PLUGIN_DEV_PORTS=memories:5175` on the host for the cross-port proxy.
+The host SPA's `vite.config.ts` proxies `/plugins/memories` to `:5175` so editing `src/*` updates the panel without rebuilding the host. The dev sandbox uses an in-memory mock API (`src/dev-mock.ts`) so it renders without the PHP backend — set `SPORA_PLUGIN_DEV_PORTS=memories:5175` on the host for the cross-port proxy. The path is keyed on the plugin slug, the same key the env var uses.
 
 ## Mount contract
 
