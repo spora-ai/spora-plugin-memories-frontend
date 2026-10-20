@@ -182,20 +182,30 @@ function onChipClick(value: MemoryType | null): void {
                         <circle cx="15" cy="12" r="1" />
                         <circle cx="15" cy="18" r="1" />
                     </svg>
-                    <svg
-                        class="mt-0.5 h-4 w-4 shrink-0"
+                    <!--
+                        The binding lives on the wrapper, not on the svg: a Vue
+                        binding on the svg itself hides the element's own
+                        attributes from the static analyser, and the icon then
+                        reads as an image without an accessible name. The icon
+                        is decorative — the badge beside it names the type.
+                    -->
+                    <span
+                        class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center"
                         :class="activeMemoryId === memory.id ? 'text-primary' : 'text-muted-foreground'"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                        :data-type-icon="memory.type"
                     >
-                        <path :d="TYPE_ICON_PATH[memory.type]" />
-                    </svg>
+                        <svg
+                            class="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path :d="TYPE_ICON_PATH[memory.type]" />
+                        </svg>
+                    </span>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <span class="truncate text-sm font-medium">{{ memory.name }}</span>
