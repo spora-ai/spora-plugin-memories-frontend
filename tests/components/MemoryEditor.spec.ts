@@ -62,18 +62,18 @@ describe('MemoryEditor', () => {
         expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     })
 
-    it('renders "New Memory for {name}" when agentName prop is provided in create mode', () => {
+    it('renders "New Memory for agent {name}" when agentName prop is provided in create mode', () => {
         const wrapper = mount(MemoryEditor, {
-            props: { agentName: 'My Agent' },
+            props: { agentName: 'Ada' },
         })
-        expect(wrapper.find('h2').text()).toContain('New Memory for My Agent')
+        expect(wrapper.find('h2').text()).toContain('New Memory for agent Ada')
     })
 
-    it('renders "Edit Memory for {name}" when agentName prop is provided in edit mode', () => {
+    it('renders "Edit Memory for agent {name}" when agentName prop is provided in edit mode', () => {
         const wrapper = mount(MemoryEditor, {
-            props: { memory: createMemory(), agentName: 'My Agent' },
+            props: { memory: createMemory(), agentName: 'Ada' },
         })
-        expect(wrapper.find('h2').text()).toContain('Edit Memory for My Agent')
+        expect(wrapper.find('h2').text()).toContain('Edit Memory for agent Ada')
     })
 
     it('emits save with correct data on submit (including type)', async () => {

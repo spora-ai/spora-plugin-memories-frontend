@@ -41,7 +41,7 @@
   "No documents yet.": "Noch keine Dokumente.",
   "Opening…": "Wird geöffnet…",
   "Pick a document on the left, or create a new one.": "Wählen Sie links ein Dokument aus oder erstellen Sie ein neues.",
-  "Plan": "Pläne",
+  "Plan": "Pl.",
   "Plans": "Pläne",
   "Principal scope": "Geltungsbereich der Principals",
   "Save Changes": "Änderungen speichern",
@@ -53,5 +53,5 @@
   "Summary": "Kurzbeschreibung",
   "Type": "Typ",
   "e.g. user_preferences, project_context": "z. B. user_preferences, project_context",
-  "for": "für"
+  "for agent {name}": "für den Agenten {name}"
 }

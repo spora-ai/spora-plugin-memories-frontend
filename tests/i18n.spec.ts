@@ -79,6 +79,11 @@ describe('German catalogue', () => {
         expect(wrapper.find('input[placeholder]').attributes('placeholder')).toContain('z. B.')
     })
 
+    it('interpolates the agent name into the German heading', () => {
+        const wrapper = mount(MemoryEditor, { ...german(), props: { agentName: 'Ada' } })
+        expect(wrapper.find('h2').text()).toContain('Neue Erinnerung für den Agenten Ada')
+    })
+
     it('falls back to the English source for a locale it has no catalogue for', () => {
         const wrapper = mount(DocumentsPanel, {
             global: { plugins: [createPluginI18n('fr')] },

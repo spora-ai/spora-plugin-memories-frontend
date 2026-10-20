@@ -53,5 +53,5 @@
   "Summary": "Summary",
   "Type": "Type",
   "e.g. user_preferences, project_context": "e.g. user_preferences, project_context",
-  "for": "for"
+  "for agent {name}": "for agent {name}"
 }

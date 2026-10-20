@@ -125,13 +125,26 @@ const SCAN_EXTENSIONS = new Set(['.vue', '.ts', '.tsx', '.js', '.jsx'])
  */
 const TEXT_ESCAPES = /\\([\\@{}|])/g
 
+/**
+ * A named or list placeholder — `{name}`, `{0}`.
+ *
+ * vue-i18n's message compiler turns these into parameter lookups, so
+ * they are *not* a syntax error: a message that interpolates a
+ * filename or a count is the normal case, and the project-wide
+ * i18n contract calls it out by name.
+ */
+const PLACEHOLDER = /\{\s*[\w.-]+\s*\}/g
+
 function syntaxProblem(key) {
     // Escapes are *consumed* by the compiler and rendered literally, so they
     // are removed rather than unwrapped: `Use \{braces\}` compiles to the
     // literal text `Use {braces}`, and unwrapping it would leave exactly the
     // braces this rule exists to reject.
     const stripped = key.replace(TEXT_ESCAPES, '')
-    const found = ['{', '}', '|'].filter((ch) => stripped.includes(ch))
+    // The well-formed placeholders go too: they are the interpolation
+    // syntax, and what is left over is a brace vue-i18n cannot compile.
+    const withoutPlaceholders = stripped.replace(PLACEHOLDER, '')
+    const found = ['{', '}', '|'].filter((ch) => withoutPlaceholders.includes(ch))
     return found.length > 0 ? found : null
 }
 

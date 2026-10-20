@@ -184,7 +184,7 @@ async function handleAttachMedia(): Promise<void> {
 <template>
     <div class="max-w-3xl">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-lg font-semibold">{{ isEditing ? t('Edit Memory') : t('New Memory') }}{{ agentName ? ` ${t('for')} ${agentName}` : '' }}</h2>
+            <h2 class="text-lg font-semibold">{{ isEditing ? t('Edit Memory') : t('New Memory') }}{{ agentName ? ` ${t('for agent {name}', { name: agentName })}` : '' }}</h2>
             <button
                 type="button"
                 class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
