@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ApiError } from '../api/client'
+import { t } from '../i18n'
 import type {
     MemoryResource,
     MemoryType,
@@ -41,6 +42,11 @@ function currentPrincipalId(): number | null {
  *     so the catch blocks stay byte-identical.
  *   - `../api/memories` now accepts an optional `principalId` and
  *     appends `?principal_id=` when set.
+ *
+ * The two arms of each catch are different kinds of text: an `ApiError`
+ * carries the message the API returned, which the server already
+ * localized, so it is passed through untouched. The fallback is a
+ * plugin-local English literal, so it goes through `t()`.
  */
 export const useMemoriesStore = defineStore('memories', () => {
     // State
@@ -59,7 +65,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         try {
             globalMemories.value = await api.getGlobalMemories(currentPrincipalId(), type)
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to load memories.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to load memories.')
         } finally {
             loadingGlobal.value = false
         }
@@ -73,7 +79,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             globalMemories.value.push(memory)
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to create memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to create memory.')
             throw e
         } finally {
             saving.value = false
@@ -89,7 +95,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             if (idx !== -1) globalMemories.value[idx] = memory
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to update memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to update memory.')
             throw e
         } finally {
             saving.value = false
@@ -103,7 +109,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             await api.deleteGlobalMemory(id, currentPrincipalId())
             globalMemories.value = globalMemories.value.filter((m) => m.id !== id)
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to delete memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to delete memory.')
             throw e
         } finally {
             saving.value = false
@@ -119,7 +125,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             if (idx !== -1) globalMemories.value[idx] = memory
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to replace memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to replace memory.')
             throw e
         } finally {
             saving.value = false
@@ -134,7 +140,7 @@ export const useMemoriesStore = defineStore('memories', () => {
         try {
             agentMemories.value = await api.getAgentMemories(agentId, currentPrincipalId(), type)
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to load agent memories.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to load agent memories.')
         } finally {
             loadingAgent.value = false
         }
@@ -148,7 +154,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             agentMemories.value.push(memory)
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to create agent memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to create agent memory.')
             throw e
         } finally {
             saving.value = false
@@ -168,7 +174,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             if (idx !== -1) agentMemories.value[idx] = memory
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to update agent memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to update agent memory.')
             throw e
         } finally {
             saving.value = false
@@ -182,7 +188,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             await api.deleteAgentMemory(agentId, memoryId, currentPrincipalId())
             agentMemories.value = agentMemories.value.filter((m) => m.id !== memoryId)
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to delete agent memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to delete agent memory.')
             throw e
         } finally {
             saving.value = false
@@ -202,7 +208,7 @@ export const useMemoriesStore = defineStore('memories', () => {
             if (idx !== -1) agentMemories.value[idx] = memory
             return memory
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to replace memory.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to replace memory.')
             throw e
         } finally {
             saving.value = false
@@ -218,7 +224,7 @@ export const useMemoriesStore = defineStore('memories', () => {
                 .filter((m): m is MemoryResource => m !== undefined)
             globalMemories.value = ordered
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to reorder memories.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to reorder memories.')
             throw e
         }
     }
@@ -232,7 +238,7 @@ export const useMemoriesStore = defineStore('memories', () => {
                 .filter((m): m is MemoryResource => m !== undefined)
             agentMemories.value = ordered
         } catch (e) {
-            error.value = e instanceof ApiError ? e.message : 'Failed to reorder memories.'
+            error.value = e instanceof ApiError ? e.message : t('Failed to reorder memories.')
             throw e
         }
     }

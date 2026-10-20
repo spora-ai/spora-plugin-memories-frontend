@@ -23,6 +23,7 @@ import App from './App.vue'
 import MemoriesPage from './pages/MemoriesPage.vue'
 import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
 import { setApi } from './api/client'
+import { createPluginI18n } from './i18n'
 import { createMockApi, createMockOpenMediaPicker } from './dev-mock'
 
 // One-line banner so the developer knows they're in sandbox mode and
@@ -36,6 +37,10 @@ const hostContext: PluginHostContext = {
     api: mockApi,
     pinia: createPinia(),
     theme: 'light',
+    // The host tells a plugin which language is active; the sandbox
+    // has no host, so it reads it from the query string
+    // (`?locale=de`) and falls back to English.
+    locale: new URLSearchParams(location.search).get('locale') ?? 'en',
     route: { path: '/apps/memories', params: {}, query: {} },
     router: {
         push: async () => undefined,
@@ -61,6 +66,7 @@ const target = document.getElementById('app')
 if (target) {
     const app = createApp(App, { hostContext })
     app.use(createPinia())
+    app.use(createPluginI18n(hostContext.locale))
     app.use(router)
     // Mirror `src/main.ts → mount()` so the dev sandbox presents the
     // same Vue inject() tree as the production slot. Without this

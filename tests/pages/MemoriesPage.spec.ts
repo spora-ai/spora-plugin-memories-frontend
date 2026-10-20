@@ -106,6 +106,7 @@ const hostContext: PluginHostContext = {
     api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
     pinia: null,
     theme: 'light',
+    locale: 'en',
     route: null,
     router: null,
 }

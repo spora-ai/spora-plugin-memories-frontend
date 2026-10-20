@@ -42,6 +42,7 @@ describe('MemoriesPage — end-to-end scope + agent switching', () => {
             api: mock,
             pinia,
             theme: 'light',
+            locale: 'en',
             route: { path: '/apps/memories', params: {}, query: {} },
             router: {
                 push: async (to: string) => { await router.push(to) },
