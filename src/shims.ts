@@ -72,6 +72,13 @@ export interface PluginHostContext {
     theme: 'light' | 'dark'
     route: { path: string; params: Record<string, unknown>; query: Record<string, unknown> } | null
     /**
+     * The host's active interface language, e.g. `'de'`.
+     *
+     * The plugin builds its own i18n instance from its own catalogue and
+     * initialises it with this.
+     */
+    locale: string
+    /**
      * Host's Vue Router instance. Plugins read `currentRoute` (a
      * `shallowRef`) for reactive URL tracking, and call `push(to)` for
      * client-side navigation. The host already exposes the full Router

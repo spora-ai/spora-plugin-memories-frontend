@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, useId, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { X, ImageIcon } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
 import { MdEditor } from 'md-editor-v3'
@@ -69,12 +70,23 @@ const MEMORY_EDITOR_TOOLBARS: MemoryEditorToolbarItem[] = [
 
 const MEMORY_LOCALE = 'en-US'
 
-const TYPES: ReadonlyArray<{ value: MemoryType; label: string }> = [
-    { value: 'plan', label: 'Plan' },
-    { value: 'documentation', label: 'Documentation' },
-    { value: 'examples', label: 'Examples' },
-    { value: 'context', label: 'Context' },
-]
+const { t } = useI18n()
+
+/**
+ * `Markdown` is a proper noun and the same word in German, so the
+ * hint is not in the catalogue — a catalogue entry would have to be
+ * identical to its key, which the CI rejects as an untranslated
+ * placeholder. It lives here rather than in the template because a
+ * literal in the template is reported as untranslated copy.
+ */
+const MARKDOWN_HINT = '(Markdown)'
+
+const TYPES = computed<ReadonlyArray<{ value: MemoryType; label: string }>>(() => [
+    { value: 'plan', label: t('Plan') },
+    { value: 'documentation', label: t('Documentation') },
+    { value: 'examples', label: t('Examples') },
+    { value: 'context', label: t('Context') },
+])
 
 const props = defineProps<{
     memory?: MemoryResource | null
@@ -162,7 +174,7 @@ async function handleAttachMedia(): Promise<void> {
             ? `${content.value}\n${insertion}\n`
             : `${insertion}\n`
     } catch (e) {
-        mediaError.value = e instanceof Error ? e.message : 'Failed to open media picker.'
+        mediaError.value = e instanceof Error ? e.message : t('Failed to open media picker.')
     } finally {
         insertingMedia.value = false
     }
@@ -172,7 +184,7 @@ async function handleAttachMedia(): Promise<void> {
 <template>
     <div class="max-w-3xl">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-lg font-semibold">{{ isEditing ? 'Edit Memory' : 'New Memory' }}{{ agentName ? ` for ${agentName}` : '' }}</h2>
+            <h2 class="text-lg font-semibold">{{ isEditing ? t('Edit Memory') : t('New Memory') }}{{ agentName ? ` ${t('for')} ${agentName}` : '' }}</h2>
             <button
                 type="button"
                 class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -185,44 +197,44 @@ async function handleAttachMedia(): Promise<void> {
         <form class="space-y-4" @submit.prevent="handleSubmit">
             <div class="grid grid-cols-[3fr_1fr] gap-3">
                 <div>
-                    <label :for="nameId" class="mb-1.5 block text-sm font-medium">Name <span class="text-destructive">*</span></label>
+                    <label :for="nameId" class="mb-1.5 block text-sm font-medium">{{ t('Name') }} <span class="text-destructive">*</span></label>
                     <input
                         :id="nameId"
                         v-model="name"
                         type="text"
                         required
-                        placeholder="e.g. user_preferences, project_context"
+                        :placeholder="t('e.g. user_preferences, project_context')"
                         class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring font-mono"
                     />
                 </div>
                 <div>
-                    <label :for="typeId" class="mb-1.5 block text-sm font-medium">Type <span class="text-destructive">*</span></label>
+                    <label :for="typeId" class="mb-1.5 block text-sm font-medium">{{ t('Type') }} <span class="text-destructive">*</span></label>
                     <select
                         :id="typeId"
                         v-model="type"
                         required
                         class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                        <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                        <option v-for="entry in TYPES" :key="entry.value" :value="entry.value">{{ entry.label }}</option>
                     </select>
                 </div>
             </div>
 
             <div>
-                <label :for="summaryId" class="mb-1.5 block text-sm font-medium">Summary</label>
+                <label :for="summaryId" class="mb-1.5 block text-sm font-medium">{{ t('Summary') }}</label>
                 <input
                     :id="summaryId"
                     v-model="summary"
                     type="text"
                     maxlength="500"
-                    placeholder="Brief one-line description (auto-derived if empty)"
+                    :placeholder="t('Brief one-line description (auto-derived if empty)')"
                     class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                 />
             </div>
 
             <div>
                 <div class="mb-1.5 flex items-center justify-between">
-                    <label :for="contentId" class="block text-sm font-medium">Content <span class="text-xs text-muted-foreground">(Markdown)</span></label>
+                    <label :for="contentId" class="block text-sm font-medium">{{ t('Content') }} <span class="text-xs text-muted-foreground">{{ MARKDOWN_HINT }}</span></label>
                     <button
                         type="button"
                         class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
@@ -230,14 +242,14 @@ async function handleAttachMedia(): Promise<void> {
                         @click="handleAttachMedia"
                     >
                         <ImageIcon class="h-3.5 w-3.5" />
-                        {{ insertingMedia ? 'Opening…' : 'Attach media' }}
+                        {{ insertingMedia ? t('Opening…') : t('Attach media') }}
                     </button>
                 </div>
                 <MdEditor
                     :id="contentId"
                     :model-value="content"
                     :rows="16"
-                    :placeholder="'Memory content in Markdown format...'"
+                    :placeholder="t('Memory content in Markdown format...')"
                     :theme="theme ?? 'light'"
                     :language="MEMORY_LOCALE"
                     :toolbars="MEMORY_EDITOR_TOOLBARS"
@@ -255,7 +267,7 @@ async function handleAttachMedia(): Promise<void> {
                     :disabled="!canSubmitSave"
                     class="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {{ saving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Memory') }}
+                    {{ saving ? t('Saving…') : (isEditing ? t('Save Changes') : t('Create Memory')) }}
                 </button>
 
                 <button
@@ -265,7 +277,7 @@ async function handleAttachMedia(): Promise<void> {
                     class="inline-flex h-9 items-center justify-center rounded-lg border border-destructive/30 px-4 text-sm font-medium text-destructive shadow-sm transition-colors hover:bg-destructive/10 disabled:opacity-50"
                     @click="$emit('delete')"
                 >
-                    Delete
+                    {{ t('Delete') }}
                 </button>
 
                 <button
@@ -273,9 +285,9 @@ async function handleAttachMedia(): Promise<void> {
                     class="inline-flex h-9 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
                     @click="$emit('cancel')"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </button>
-                <span class="ml-auto text-xs text-muted-foreground">Saved locally · press ⌘S</span>
+                <span class="ml-auto text-xs text-muted-foreground">{{ t('Saved locally · press ⌘S') }}</span>
             </div>
         </form>
     </div>

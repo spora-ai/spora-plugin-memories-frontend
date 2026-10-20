@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import App from './App.vue'
 import MemoriesPage from './pages/MemoriesPage.vue'
 import { setApi } from './api/client'
+import { createPluginI18n } from './i18n'
 import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
 
 /**
@@ -21,6 +22,10 @@ import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
  * pollute the host's stores. Host services (auth, theme) are reached
  * via the passed-in `hostContext.api` and `setApi(...)` initializes
  * the bridge.
+ *
+ * The i18n instance is local too: the host does not publish its own,
+ * so the plugin builds one from its own catalogue and seeds it with
+ * `hostContext.locale`.
  *
  * `mount()` may be sync or async. The registry awaits the return
  * value when it looks like a thenable, so plugins can do async setup
@@ -53,6 +58,10 @@ const SporaApp: MountContract = {
 
         // Plugin-local Pinia for plugin-only state.
         app.use(createPinia())
+
+        // The plugin builds its own i18n instance from its own
+        // catalogue; the host only tells us which language is active.
+        app.use(createPluginI18n(hostContext.locale))
 
         // Plugin-local router. We re-declare the routes here (App.vue
         // builds its own copy of the same router; this one is the one

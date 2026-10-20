@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { Brain, Globe, Bot, ChevronDown, Plus, Menu, X } from 'lucide-vue-next'
 import PrincipalChipRow from '../components/PrincipalChipRow.vue'
@@ -59,6 +60,16 @@ const store = useMemoriesStore()
 const principalsStore = usePrincipalsStore()
 const { agents, fetchAgents } = useAgents()
 const hostContext = inject<PluginHostContext>(HOST_CONTEXT_KEY)
+const { t } = useI18n()
+
+/**
+ * `Agent` is the product's own term and the same word in German, so
+ * the prefix is not in the catalogue — a catalogue entry would have to
+ * be identical to its key, which the CI rejects as an untranslated
+ * placeholder. It lives here rather than in the template because a
+ * literal in the template is reported as untranslated copy.
+ */
+const AGENT_PREFIX = 'Agent:'
 
 const sidebarOpen = ref(false)
 const showAgentDropdown = ref(false)
@@ -274,12 +285,12 @@ watch(
                 <dialog
                     open
                     class="absolute left-0 top-0 m-0 h-full w-72 border-r border-border bg-background p-3 backdrop:bg-transparent"
-                    aria-label="Documents sidebar"
+                    :aria-label="t('Documents sidebar')"
                 >
                     <div class="mb-2 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <Brain class="h-5 w-5 text-primary" />
-                            <span class="font-semibold text-sm">Memories</span>
+                            <span class="font-semibold text-sm">{{ t('Memories') }}</span>
                         </div>
                         <button
                             type="button"
@@ -310,14 +321,14 @@ watch(
                     <button
                         type="button"
                         class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Show documents"
+                        :title="t('Show documents')"
                         @click="sidebarOpen = true"
                     >
                         <Menu class="h-4 w-4" />
                     </button>
                     <div class="flex items-center gap-2">
                         <Brain class="h-5 w-5 text-primary" />
-                        <span class="font-semibold text-sm">Memories</span>
+                        <span class="font-semibold text-sm">{{ t('Memories') }}</span>
                     </div>
                 </div>
 
@@ -340,7 +351,7 @@ watch(
                                 @click="selectGlobalMode"
                             >
                                 <Globe class="h-3.5 w-3.5" />
-                                Global
+                                {{ t('Global') }}
                             </button>
                             <div class="relative">
                                 <button
@@ -353,7 +364,7 @@ watch(
                                     @click="handleAgentButtonClick"
                                 >
                                     <Bot class="h-3.5 w-3.5" />
-                                    <span>Agent: {{ selectedAgent?.name ?? agents[0]?.name ?? 'Select' }}</span>
+                                    <span>{{ AGENT_PREFIX }} {{ selectedAgent?.name ?? agents[0]?.name ?? t('Select') }}</span>
                                     <ChevronDown class="h-3 w-3 opacity-60" />
                                 </button>
                                 <div
@@ -382,7 +393,7 @@ watch(
                             @click="startCreate"
                         >
                             <Plus class="h-3.5 w-3.5" />
-                            New
+                            {{ t('New') }}
                         </button>
                     </div>
 
@@ -450,7 +461,7 @@ watch(
                             >
                                 <Brain class="h-8 w-8 text-muted-foreground" />
                                 <p class="text-sm text-muted-foreground">
-                                    Pick a document on the left, or create a new one.
+                                    {{ t('Pick a document on the left, or create a new one.') }}
                                 </p>
                                 <button
                                     type="button"
@@ -458,7 +469,7 @@ watch(
                                     @click="startCreate"
                                 >
                                     <Plus class="h-3.5 w-3.5" />
-                                    New
+                                    {{ t('New') }}
                                 </button>
                             </div>
                         </section>

@@ -13,7 +13,10 @@
  * message.
  */
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePrincipalsStore } from '../stores/principals'
+
+const { t } = useI18n()
 
 const principals = usePrincipalsStore()
 
@@ -35,15 +38,15 @@ function chipClass(id: number): string {
 
 function chipLabel(p: { name: string; type: string }): string {
     if (p.type === 'user') {
-        return p.name.startsWith('User #') ? 'My Memories' : p.name
+        return p.name.startsWith('User #') ? t('My Memories') : p.name
     }
     return p.name
 }
 </script>
 
 <template>
-    <div class="flex items-center gap-2 flex-wrap" role="tablist" aria-label="Principal scope">
-        <span class="text-xs text-muted-foreground uppercase tracking-wide">Scope</span>
+    <div class="flex items-center gap-2 flex-wrap" role="tablist" :aria-label="t('Principal scope')">
+        <span class="text-xs text-muted-foreground uppercase tracking-wide">{{ t('Scope') }}</span>
         <div v-if="principals.loading && principals.principals.length === 0" class="flex items-center gap-2">
             <span
                 v-for="i in 3"
