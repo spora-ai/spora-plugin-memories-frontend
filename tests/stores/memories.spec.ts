@@ -24,11 +24,13 @@ const {
     createGlobalMemoryMock,
     updateGlobalMemoryMock,
     deleteGlobalMemoryMock,
+    replaceGlobalMemoryMock,
     reorderGlobalMemoriesMock,
     getAgentMemoriesMock,
     createAgentMemoryMock,
     updateAgentMemoryMock,
     deleteAgentMemoryMock,
+    replaceAgentMemoryMock,
     reorderAgentMemoriesMock,
     selectedPrincipalIdRef,
 } = vi.hoisted(() => ({
@@ -36,11 +38,13 @@ const {
     createGlobalMemoryMock: vi.fn(),
     updateGlobalMemoryMock: vi.fn(),
     deleteGlobalMemoryMock: vi.fn(),
+    replaceGlobalMemoryMock: vi.fn(),
     reorderGlobalMemoriesMock: vi.fn(),
     getAgentMemoriesMock: vi.fn(),
     createAgentMemoryMock: vi.fn(),
     updateAgentMemoryMock: vi.fn(),
     deleteAgentMemoryMock: vi.fn(),
+    replaceAgentMemoryMock: vi.fn(),
     reorderAgentMemoriesMock: vi.fn(),
     selectedPrincipalIdRef: { value: null as number | null },
 }))
@@ -62,13 +66,13 @@ vi.mock('../../src/api/memories', () => ({
     createGlobalMemory: createGlobalMemoryMock,
     updateGlobalMemory: updateGlobalMemoryMock,
     deleteGlobalMemory: deleteGlobalMemoryMock,
-    replaceGlobalMemory: vi.fn(),
+    replaceGlobalMemory: replaceGlobalMemoryMock,
     reorderGlobalMemories: reorderGlobalMemoriesMock,
     getAgentMemories: getAgentMemoriesMock,
     createAgentMemory: createAgentMemoryMock,
     updateAgentMemory: updateAgentMemoryMock,
     deleteAgentMemory: deleteAgentMemoryMock,
-    replaceAgentMemory: vi.fn(),
+    replaceAgentMemory: replaceAgentMemoryMock,
     reorderAgentMemories: reorderAgentMemoriesMock,
 }))
 
@@ -218,6 +222,13 @@ describe('memories store', () => {
             expect(store.error).toBe('dup')
         })
 
+        it('createGlobalMemory throws and sets error on non-ApiError', async () => {
+            createGlobalMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.createGlobalMemory({ name: 'n', type: 'context', content: 'c' })).rejects.toThrow()
+            expect(store.error).toBe('Failed to create memory.')
+        })
+
         it('updateGlobalMemory replaces the memory at the matching index', async () => {
             const id = '11111111-1111-7111-b012-111111111111'
             updateGlobalMemoryMock.mockResolvedValueOnce(sampleMem({ id, name: 'updated' }))
@@ -233,6 +244,14 @@ describe('memories store', () => {
             const store = useMemoriesStore()
             await expect(store.updateGlobalMemory(id, { name: 'x' })).rejects.toThrow()
             expect(store.error).toBe('Failed to update memory.')
+        })
+
+        it('updateGlobalMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            updateGlobalMemoryMock.mockRejectedValueOnce(new ApiError('gone', 'NOT_FOUND', 404))
+            const store = useMemoriesStore()
+            await expect(store.updateGlobalMemory(id, { name: 'x' })).rejects.toThrow(ApiError)
+            expect(store.error).toBe('gone')
         })
 
         it('deleteGlobalMemory removes from the list', async () => {
@@ -252,6 +271,39 @@ describe('memories store', () => {
             const store = useMemoriesStore()
             await expect(store.deleteGlobalMemory(id)).rejects.toThrow()
             expect(store.error).toBe('Failed to delete memory.')
+        })
+
+        it('deleteGlobalMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            deleteGlobalMemoryMock.mockRejectedValueOnce(new ApiError('locked', 'LOCKED', 409))
+            const store = useMemoriesStore()
+            await expect(store.deleteGlobalMemory(id)).rejects.toThrow(ApiError)
+            expect(store.error).toBe('locked')
+        })
+
+        it('replaceGlobalMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            replaceGlobalMemoryMock.mockRejectedValueOnce(new ApiError('gone', 'NOT_FOUND', 404))
+            const store = useMemoriesStore()
+            await expect(store.replaceGlobalMemory(id, {
+                name: 'x',
+                type: 'context',
+                find: 'old',
+                new_text: 'new',
+            })).rejects.toThrow(ApiError)
+            expect(store.error).toBe('gone')
+        })
+
+        it('replaceGlobalMemory throws and sets error on non-ApiError', async () => {
+            replaceGlobalMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.replaceGlobalMemory('1', {
+                name: 'x',
+                type: 'context',
+                find: 'old',
+                new_text: 'new',
+            })).rejects.toThrow()
+            expect(store.error).toBe('Failed to replace memory.')
         })
 
         it('reorderGlobalMemories reorders the list in place', async () => {
@@ -275,6 +327,13 @@ describe('memories store', () => {
             await expect(store.reorderGlobalMemories(['1'])).rejects.toThrow()
             expect(store.error).toBe('Failed to reorder memories.')
         })
+
+        it('reorderGlobalMemories surfaces an ApiError message verbatim', async () => {
+            reorderGlobalMemoriesMock.mockRejectedValueOnce(new ApiError('conflict', 'CONFLICT', 409))
+            const store = useMemoriesStore()
+            await expect(store.reorderGlobalMemories(['1'])).rejects.toThrow(ApiError)
+            expect(store.error).toBe('conflict')
+        })
     })
 
     describe('agent memories', () => {
@@ -297,6 +356,86 @@ describe('memories store', () => {
             const store = useMemoriesStore()
             await store.loadAgentMemories(7)
             expect(store.error).toBe('err')
+        })
+
+        it('loadAgentMemories sets generic error on non-ApiError', async () => {
+            getAgentMemoriesMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await store.loadAgentMemories(7)
+            expect(store.error).toBe('Failed to load agent memories.')
+        })
+
+        it('createAgentMemory surfaces an ApiError message verbatim', async () => {
+            createAgentMemoryMock.mockRejectedValueOnce(new ApiError('dup', 'DUPLICATE_NAME', 409))
+            const store = useMemoriesStore()
+            await expect(store.createAgentMemory(7, { name: 'n', type: 'context', content: 'c' }))
+                .rejects.toThrow(ApiError)
+            expect(store.error).toBe('dup')
+        })
+
+        it('createAgentMemory throws and sets error on non-ApiError', async () => {
+            createAgentMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.createAgentMemory(7, { name: 'n', type: 'context', content: 'c' }))
+                .rejects.toThrow()
+            expect(store.error).toBe('Failed to create agent memory.')
+        })
+
+        it('updateAgentMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            updateAgentMemoryMock.mockRejectedValueOnce(new ApiError('gone', 'NOT_FOUND', 404))
+            const store = useMemoriesStore()
+            await expect(store.updateAgentMemory(7, id, { name: 'x' })).rejects.toThrow(ApiError)
+            expect(store.error).toBe('gone')
+        })
+
+        it('updateAgentMemory throws and sets error on non-ApiError', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            updateAgentMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.updateAgentMemory(7, id, { name: 'x' })).rejects.toThrow()
+            expect(store.error).toBe('Failed to update agent memory.')
+        })
+
+        it('deleteAgentMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            deleteAgentMemoryMock.mockRejectedValueOnce(new ApiError('locked', 'LOCKED', 409))
+            const store = useMemoriesStore()
+            await expect(store.deleteAgentMemory(7, id)).rejects.toThrow(ApiError)
+            expect(store.error).toBe('locked')
+        })
+
+        it('deleteAgentMemory throws and sets error on non-ApiError', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            deleteAgentMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.deleteAgentMemory(7, id)).rejects.toThrow()
+            expect(store.error).toBe('Failed to delete agent memory.')
+        })
+
+        it('replaceAgentMemory surfaces an ApiError message verbatim', async () => {
+            const id = '11111111-1111-7111-b012-111111111111'
+            replaceAgentMemoryMock.mockRejectedValueOnce(new ApiError('gone', 'NOT_FOUND', 404))
+            const store = useMemoriesStore()
+            await expect(store.replaceAgentMemory(7, id, {
+                name: 'x',
+                type: 'context',
+                find: 'old',
+                new_text: 'new',
+            })).rejects.toThrow(ApiError)
+            expect(store.error).toBe('gone')
+        })
+
+        it('replaceAgentMemory throws and sets error on non-ApiError', async () => {
+            replaceAgentMemoryMock.mockRejectedValueOnce(new Error('nope'))
+            const store = useMemoriesStore()
+            await expect(store.replaceAgentMemory(7, '1', {
+                name: 'x',
+                type: 'context',
+                find: 'old',
+                new_text: 'new',
+            })).rejects.toThrow()
+            expect(store.error).toBe('Failed to replace memory.')
         })
 
         it('createAgentMemory appends and returns the new memory', async () => {
@@ -347,6 +486,13 @@ describe('memories store', () => {
             const store = useMemoriesStore()
             await expect(store.reorderAgentMemories(7, ['1'])).rejects.toThrow()
             expect(store.error).toBe('Failed to reorder memories.')
+        })
+
+        it('reorderAgentMemories surfaces an ApiError message verbatim', async () => {
+            reorderAgentMemoriesMock.mockRejectedValueOnce(new ApiError('conflict', 'CONFLICT', 409))
+            const store = useMemoriesStore()
+            await expect(store.reorderAgentMemories(7, ['1'])).rejects.toThrow(ApiError)
+            expect(store.error).toBe('conflict')
         })
     })
 })

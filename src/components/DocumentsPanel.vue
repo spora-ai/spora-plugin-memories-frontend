@@ -191,6 +191,7 @@ function onChipClick(value: MemoryType | null): void {
                         stroke-width="2"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                        aria-hidden="true"
                         :data-type-icon="memory.type"
                     >
                         <path :d="TYPE_ICON_PATH[memory.type]" />

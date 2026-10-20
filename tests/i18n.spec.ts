@@ -9,7 +9,7 @@
  * rendered output proves all three line up.
  */
 import { mount } from '@vue/test-utils'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import DocumentsPanel from '../src/components/DocumentsPanel.vue'
 import MemoryEditor from '../src/components/MemoryEditor.vue'
 import { createPluginI18n } from '../src/i18n'
@@ -91,5 +91,19 @@ describe('German catalogue', () => {
             },
         })
         expect(wrapper.text()).toContain('Documents')
+    })
+})
+
+describe('the store-facing translator', () => {
+    it('falls back to the English source when no instance has been created yet', async () => {
+        // A fresh module registry, so the instance this file created is
+        // not the one being asked. The stores translate before the app
+        // mounts — a store action that runs first must not crash, and
+        // `en.json` is an identity map, so the source string is the
+        // right answer.
+        vi.resetModules()
+        const fresh = await import('../src/i18n')
+
+        expect(fresh.t('Failed to load memories.')).toBe('Failed to load memories.')
     })
 })
