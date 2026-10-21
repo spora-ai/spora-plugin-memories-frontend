@@ -44,6 +44,7 @@ function makeHostContext(): PluginHostContext {
         },
         pinia: null,
         theme: 'light',
+        locale: 'en',
         route: null,
         router: null,
     }

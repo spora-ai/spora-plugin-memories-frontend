@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Plus } from 'lucide-vue-next'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { MemoryResource, MemoryType } from '../types'
@@ -22,19 +23,30 @@ import type { MemoryResource, MemoryType } from '../types'
  * and reverted the drag, see `DocumentsPanel.spec.ts`.
  */
 
-const TYPES: ReadonlyArray<{ value: MemoryType; label: string }> = [
-    { value: 'plan', label: 'Plans' },
-    { value: 'documentation', label: 'Docs' },
-    { value: 'examples', label: 'Examples' },
-    { value: 'context', label: 'Context' },
-]
+const { t } = useI18n()
 
-const TYPE_BADGE_LABEL: Readonly<Record<MemoryType, string>> = {
-    plan: 'Plan',
-    documentation: 'Doc',
-    examples: 'Ex.',
-    context: 'Ctx',
-}
+/**
+ * The type filter chips and the row badges. Both are translated, so
+ * they are computed rather than constant: a constant would freeze the
+ * label at import time, before the locale is known.
+ *
+ * The chip label is plural ("Plans") and the badge is the short form
+ * ("Plan") — they are separate keys, and the German keeps the same
+ * distinction.
+ */
+const TYPES = computed<ReadonlyArray<{ value: MemoryType; label: string }>>(() => [
+    { value: 'plan', label: t('Plans') },
+    { value: 'documentation', label: t('Docs') },
+    { value: 'examples', label: t('Examples') },
+    { value: 'context', label: t('Context') },
+])
+
+const TYPE_BADGE_LABEL = computed<Record<MemoryType, string>>(() => ({
+    plan: t('Plan'),
+    documentation: t('Doc'),
+    examples: t('Ex.'),
+    context: t('Ctx'),
+}))
 
 const TYPE_ICON_PATH: Readonly<Record<MemoryType, string>> = {
     plan: 'M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z',
@@ -95,7 +107,7 @@ function onChipClick(value: MemoryType | null): void {
         :data-mode="mode"
     >
         <div class="flex items-center justify-between border-b border-border px-3 py-2">
-            <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Documents</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground">{{ t('Documents') }}</span>
             <span class="text-xs text-muted-foreground">
                 {{ totalCount }}{{ isFiltered ? ` · ${props.typeFilter}` : '' }}
             </span>
@@ -109,29 +121,29 @@ function onChipClick(value: MemoryType | null): void {
                 data-type="all"
                 @click="onChipClick(null)"
             >
-                All
+                {{ t('All') }}
             </button>
             <button
-                v-for="t in TYPES"
-                :key="t.value"
+                v-for="entry in TYPES"
+                :key="entry.value"
                 type="button"
-                :class="chipClass(t.value)"
-                :aria-pressed="typeFilter === t.value"
-                :data-type="t.value"
-                @click="onChipClick(t.value)"
+                :class="chipClass(entry.value)"
+                :aria-pressed="typeFilter === entry.value"
+                :data-type="entry.value"
+                @click="onChipClick(entry.value)"
             >
-                {{ t.label }}
+                {{ entry.label }}
             </button>
         </div>
 
         <div class="flex-1 overflow-y-auto">
-            <div v-if="loading" class="px-3 py-6 text-center text-sm text-muted-foreground">Loading…</div>
+            <div v-if="loading" class="px-3 py-6 text-center text-sm text-muted-foreground">{{ t('Loading…') }}</div>
             <div
                 v-else-if="totalCount === 0"
                 class="px-3 py-6 text-center text-sm text-muted-foreground"
                 data-test="documents-empty"
             >
-                <p>{{ isFiltered ? 'No documents match this type.' : 'No documents yet.' }}</p>
+                <p>{{ isFiltered ? t('No documents match this type.') : t('No documents yet.') }}</p>
             </div>
             <VueDraggable
                 v-else
@@ -170,19 +182,30 @@ function onChipClick(value: MemoryType | null): void {
                         <circle cx="15" cy="12" r="1" />
                         <circle cx="15" cy="18" r="1" />
                     </svg>
-                    <svg
-                        class="mt-0.5 h-4 w-4 shrink-0"
+                    <!--
+                        The binding lives on the wrapper, not on the svg: a Vue
+                        binding on the svg itself hides the element's own
+                        attributes from the static analyser, and the icon then
+                        reads as an image without an accessible name. The icon
+                        is decorative — the badge beside it names the type.
+                    -->
+                    <span
+                        class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center"
                         :class="activeMemoryId === memory.id ? 'text-primary' : 'text-muted-foreground'"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        :data-type-icon="memory.type"
                     >
-                        <path :d="TYPE_ICON_PATH[memory.type]" />
-                    </svg>
+                        <svg
+                            class="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path :d="TYPE_ICON_PATH[memory.type]" />
+                        </svg>
+                    </span>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <span class="truncate text-sm font-medium">{{ memory.name }}</span>
@@ -205,7 +228,7 @@ function onChipClick(value: MemoryType | null): void {
             @click="emit('new')"
         >
             <Plus class="h-3.5 w-3.5" />
-            New document
+            {{ t('New document') }}
         </button>
     </aside>
 </template>

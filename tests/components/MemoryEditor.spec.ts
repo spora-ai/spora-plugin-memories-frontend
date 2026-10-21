@@ -37,6 +37,7 @@ function makeHostContext(openMediaPicker?: PluginHostContext['openMediaPicker'])
         api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
         pinia: null,
         theme: 'light',
+        locale: 'en',
         route: null,
         router: null,
         openMediaPicker,
@@ -61,18 +62,18 @@ describe('MemoryEditor', () => {
         expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     })
 
-    it('renders "New Memory for {name}" when agentName prop is provided in create mode', () => {
+    it('renders "New Memory for agent {name}" when agentName prop is provided in create mode', () => {
         const wrapper = mount(MemoryEditor, {
-            props: { agentName: 'My Agent' },
+            props: { agentName: 'Ada' },
         })
-        expect(wrapper.find('h2').text()).toContain('New Memory for My Agent')
+        expect(wrapper.find('h2').text()).toContain('New Memory for agent Ada')
     })
 
-    it('renders "Edit Memory for {name}" when agentName prop is provided in edit mode', () => {
+    it('renders "Edit Memory for agent {name}" when agentName prop is provided in edit mode', () => {
         const wrapper = mount(MemoryEditor, {
-            props: { memory: createMemory(), agentName: 'My Agent' },
+            props: { memory: createMemory(), agentName: 'Ada' },
         })
-        expect(wrapper.find('h2').text()).toContain('Edit Memory for My Agent')
+        expect(wrapper.find('h2').text()).toContain('Edit Memory for agent Ada')
     })
 
     it('emits save with correct data on submit (including type)', async () => {
@@ -166,6 +167,36 @@ describe('MemoryEditor — media picker integration', () => {
         const attachBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Attach media'))
         expect(attachBtn).toBeDefined()
         await expect(attachBtn!.trigger('click')).resolves.not.toThrow()
+    })
+
+    it('shows the picker\'s own failure message', async () => {
+        const openMediaPicker = vi.fn().mockRejectedValue(new Error('picker exploded'))
+        const wrapper = mount(MemoryEditor, {
+            props: {
+                memory: createMemory(),
+                hostContext: makeHostContext(openMediaPicker),
+            },
+        })
+        const attachBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Attach media'))
+        await attachBtn!.trigger('click')
+        await flushPromises()
+        expect(wrapper.text()).toContain('picker exploded')
+    })
+
+    it('falls back to its own message when the failure is not an Error', async () => {
+        // The picker can fail with something that is not an `Error`; the
+        // editor's own sentence is what the operator reads then.
+        const openMediaPicker = vi.fn().mockRejectedValue('not an error')
+        const wrapper = mount(MemoryEditor, {
+            props: {
+                memory: createMemory(),
+                hostContext: makeHostContext(openMediaPicker),
+            },
+        })
+        const attachBtn = wrapper.findAll('button').find((b) => (b.text() ?? '').includes('Attach media'))
+        await attachBtn!.trigger('click')
+        await flushPromises()
+        expect(wrapper.text()).toContain('Failed to open media picker.')
     })
 })
 
