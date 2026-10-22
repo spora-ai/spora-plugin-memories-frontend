@@ -1,16 +1,10 @@
 /**
- * memories API client — covers every exported function in
- * `src/api/memories.ts` by routing through a stubbed host API.
- *
- * The store-level spec (`tests/stores/memories.spec.ts`) mocks this
- * module wholesale, so its real implementation never ran in tests.
- * This spec exists to fill that gap: we stub the host's `hostContext.api`
- * and exercise the bridge that `api/memories.ts` builds on top of it.
- *
- * Coverage gain: src/api/memories.ts goes from 0% (every function was
- * mocked out by the store spec) to 100% — each of the 14 exports is
- * invoked against a stubbed `api.get/post/put/patch/delete` to verify
- * the path, body, and envelope unwrap match the PHP controllers.
+ * The store-level spec (`tests/stores/memories.spec.ts`) mocks
+ * `src/api/memories.ts` wholesale, so its real implementation never ran
+ * in tests. This spec fills that gap: we stub the host's
+ * `hostContext.api` and exercise the bridge that `api/memories.ts`
+ * builds on top of it — path, body, and envelope unwrap are checked
+ * against the PHP controllers.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setApi, ApiError } from '../../src/api/client'
@@ -212,7 +206,6 @@ describe('api/memories → reorder', () => {
 
 describe('api/client bridge', () => {
     it('getApi throws a helpful error when setApi was never called', async () => {
-        // Reset the module-level container by importing a fresh copy.
         vi.resetModules()
         const freshClient = await import('../../src/api/client')
         expect(() => freshClient.getApi()).toThrowError(/Plugin API not initialized/)

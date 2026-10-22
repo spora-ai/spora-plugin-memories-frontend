@@ -1,16 +1,10 @@
 <script setup lang="ts">
 /**
- * Principal chip row — sits between the sidebar header and the
- * global memories list.
- *
- * Renders one chip per principal the caller can see (their own
+ * Scope bar — one chip per principal the caller can see (their own
  * user-principal + every group-principal they're a member of).
+ *
  * No "ALL" / combined chip — the user's stated permission model is
  * "see one principal's memories at a time, not the union".
- *
- * Loading state: skeletons until the principals store resolves
- * `/principals/me`. Error state: a single chip showing the error
- * message.
  */
 import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'

@@ -1,9 +1,7 @@
 /**
- * Pinia store for the principal selector.
- *
- * Fetches `/api/v1/principals/me` once on mount and caches the
- * result so the chip row doesn't re-fetch every tab switch.
- * Selected principal id is kept here so it survives tab navigation
+ * Fetches `/api/v1/principals/me` once and caches the result, so
+ * switching chips or modes doesn't re-fetch. The selected principal id
+ * is kept here so it survives navigation between the plugin's modes
  * without prop-drilling.
  *
  * **No persistence** — `selectedPrincipalId` is deliberately

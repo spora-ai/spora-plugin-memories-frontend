@@ -1,8 +1,9 @@
 /**
  * Plugin-local equivalent of the host's `@/stores/agent` Pinia store. The
- * host's `useAgentStore` reaches for a global Pinia instance the plugin
- * can't safely share, so we replace it with this singleton composable
- * that mirrors the same `{ agents, fetchAgents }` shape.
+ * host's `useAgentStore` binds to whichever Pinia is active, and the
+ * plugin installs a local Pinia of its own, so the host's store is not
+ * reachable from plugin code. This singleton composable mirrors the same
+ * `{ agents, fetchAgents }` shape instead.
  */
 import { ref, type Ref } from 'vue'
 import type { AgentSummary } from '../types'

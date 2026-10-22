@@ -1,9 +1,7 @@
 /**
- * PrincipalChipRow — one chip per principal, single-select.
- *
- * Mirrors the typst plugin's chip-row coverage; asserts one chip per
- * principal, click-to-select behaviour, and the `aria-selected`
- * toggling that downstream tests rely on.
+ * Mirrors the typst plugin's chip-row coverage. The `aria-selected`
+ * toggling matters here: downstream tests rely on it to identify the
+ * active principal.
  */
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, beforeEach, vi } from 'vitest'

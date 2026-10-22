@@ -14,9 +14,9 @@ import { usePrincipalsStore } from './principals'
 
 /**
  * Resolve the active principal id lazily from the principals store.
- * Lives at module scope so SonarCloud's S7721 doesn't ask us to
- * hoist it out of every action — it's a closure-free one-liner
- * and the stateful binding happens through Pinia at call time.
+ * Module scope so it isn't re-declared in every action — it is a
+ * closure-free one-liner and the stateful binding happens through Pinia
+ * at call time.
  */
 function currentPrincipalId(): number | null {
     return usePrincipalsStore().selectedPrincipalId
@@ -26,9 +26,6 @@ function currentPrincipalId(): number | null {
  * Manages global and agent-scoped memories with CRUD, reorder, and
  * surgical-edit operations.
  *
- * Mirrors `spora-frontend/src/apps/memories/stores/memories.ts` (the
- * host-side store this plugin replaces).
- *
  * **Principal scoping:** every action reads `selectedPrincipalId` from
  * `usePrincipalsStore()` at call time and threads it to the API as
  * `?principal_id=N`. The `PrincipalChipRow` is the single source of
@@ -37,27 +34,18 @@ function currentPrincipalId(): number | null {
  * principal in scope (e.g. the MemoriesPage after `selectPrincipal()`)
  * get the right id automatically.
  *
- * Delta vs. host store:
- *   - The `@/api/client` import is rerouted to our local `api/client.ts`
- *     so the catch blocks stay byte-identical.
- *   - `../api/memories` now accepts an optional `principalId` and
- *     appends `?principal_id=` when set.
- *
  * The two arms of each catch are different kinds of text: an `ApiError`
  * carries the message the API returned, which the server already
  * localized, so it is passed through untouched. The fallback is a
  * plugin-local English literal, so it goes through `t()`.
  */
 export const useMemoriesStore = defineStore('memories', () => {
-    // State
     const globalMemories = ref<MemoryResource[]>([])
     const agentMemories = ref<MemoryResource[]>([])
     const loadingGlobal = ref(false)
     const loadingAgent = ref(false)
     const saving = ref(false)
     const error = ref<string | null>(null)
-
-    // Global memories
 
     async function loadGlobalMemories(type?: MemoryType): Promise<void> {
         loadingGlobal.value = true
@@ -131,8 +119,6 @@ export const useMemoriesStore = defineStore('memories', () => {
             saving.value = false
         }
     }
-
-    // Agent memories
 
     async function loadAgentMemories(agentId: number, type?: MemoryType): Promise<void> {
         loadingAgent.value = true

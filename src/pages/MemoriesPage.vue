@@ -19,25 +19,10 @@ import type {
 import { HOST_CONTEXT_KEY, type PluginHostContext } from '../shims'
 
 /**
- * MemoriesPage — the unified memories UI.
- *
- * Structure (top → bottom):
- *   1. **Scope bar** — `PrincipalChipRow` lets the operator pick which
- *      principal's memories to view.
- *   2. **Mode row** — segmented `Global` / `Agent: <name>` control +
- *      a global `New` button.
- *   3. **2-column body** — `DocumentsPanel` (with `All` default
- *      type-filter chips that live with the list they filter) and a
- *      `MemoryEditor` pane. The editor swaps to a "pick a document or
- *      create one" empty state when no document is selected.
- *
  * The two routes (`global-memories` and `agent-memories/:id`) both
  * resolve to this component; mode is derived from `route.name`, the
  * active agent from `route.params.id`, and the active memory from
- * `?memory=<id>` or `?create=1`. Sidebar-internal navigation
- * (`MemorySidebar`) is gone — its pieces (type chips, memory list,
- * principal chip row, agent dropdown) are now here and in
- * `DocumentsPanel`.
+ * `?memory=<id>` or `?create=1`.
  *
  * **Principal → scope flow.** When `principalsStore.selectedPrincipalId`
  * changes, we (a) refetch `agents` filtered by that principal so the
@@ -49,10 +34,9 @@ import { HOST_CONTEXT_KEY, type PluginHostContext } from '../shims'
  * onto every memory API call so the memoised chip selection drives
  * reads/writes with no extra plumbing on the call sites.
  *
- * Diff from host `pages/MemoriesPage.vue`: this plugin renders an
- * inline `Brain` button for mobile menu instead of the host's
- * `<Icon name="menu">`, since plugins don't share the host's icon
- * registry.
+ * Icons come from `lucide-vue-next` rather than the host's icon
+ * registry — the registry isn't part of the plugin host context, so a
+ * plugin brings its own.
  */
 const route = useRoute()
 const router = useRouter()
@@ -249,14 +233,14 @@ watch(
     async (nextId, prevId) => {
         if (nextId === prevId) return
 
-        // 1. Re-fetch agents filtered for the new principal so the
-        //    dropdown reflects only the agents the caller can act as
-        //    under the chosen scope.
+        // Re-fetch agents filtered for the new principal so the dropdown
+        // reflects only the agents the caller can act as under the
+        // chosen scope.
         await reloadAgentsForScope(nextId)
 
-        // 2. If we're in agent mode but the active agent no longer
-        //    belongs to the new principal, fall back to Global so the
-        //    page doesn't strand the operator on an invisible row.
+        // If we're in agent mode but the active agent no longer
+        // belongs to the new principal, fall back to Global so the
+        // page doesn't strand the operator on an invisible row.
         if (isAgentMode.value && validAgentId.value !== null) {
             const stillVisible = agents.value.some((a) => a.id === validAgentId.value)
             if (!stillVisible) {
@@ -266,7 +250,7 @@ watch(
             }
         }
 
-        // 3. Reload the active list scoped to the new principal.
+        // Reload the active list scoped to the new principal.
         loadActiveList(selectedType.value)
     },
 )
@@ -275,7 +259,6 @@ watch(
 <template>
     <div class="min-h-screen bg-background flex flex-col">
         <div class="flex-1 flex">
-            <!-- Mobile sidebar overlay -->
             <div
                 v-if="sidebarOpen"
                 class="fixed inset-0 z-40 md:hidden"
@@ -314,9 +297,7 @@ watch(
                 </dialog>
             </div>
 
-            <!-- Main column -->
             <main class="flex-1 w-full overflow-y-auto">
-                <!-- Mobile sidebar toggle + app header -->
                 <div class="flex items-center gap-3 px-4 py-3 border-b border-border md:hidden">
                     <button
                         type="button"
@@ -333,12 +314,10 @@ watch(
                 </div>
 
                 <div class="mx-auto max-w-6xl space-y-4 px-4 py-6 md:px-6">
-                    <!-- (1) Scope bar -->
                     <div class="flex flex-wrap items-center gap-2">
                         <PrincipalChipRow />
                     </div>
 
-                    <!-- (2) Mode row -->
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
                         <nav class="inline-flex rounded-lg border border-border bg-card p-1 text-sm">
                             <button
@@ -397,14 +376,12 @@ watch(
                         </button>
                     </div>
 
-                    <!-- Error -->
                     <AlertBanner
                         v-if="store.error"
                         type="error"
                         :message="store.error"
                     />
 
-                    <!-- (3) Body: documents + editor -->
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-[16rem_1fr]">
                         <div class="hidden md:block" style="height: 70vh;">
                             <DocumentsPanel

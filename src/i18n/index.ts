@@ -1,6 +1,4 @@
 /**
- * i18n instance — Composition API only (`legacy: false`).
- *
  * The plugin builds its *own* instance from its *own* catalogue rather
  * than sharing the host's: the host does not publish its instance, so
  * reaching into it would couple this plugin's catalogue lifetime to
@@ -53,9 +51,9 @@ export function createPluginI18n(locale: string) {
 /**
  * Translate outside a component.
  *
- * The composer's own `t` is read through an alias: the extractor
- * treats every call named `t` as a catalogue lookup, and a call with
- * a runtime key would be reported as a dynamic key it cannot harvest.
+ * The composer's own `t` is read through an alias: the i18n extractor
+ * treats every call named `t` as a catalogue lookup, and a call with a
+ * runtime key would be reported as a dynamic key it cannot harvest.
  */
 export function t(key: string): string {
     if (composer === null) return key

@@ -2,20 +2,12 @@
  * Mount/unmount contract — exercises `src/main.ts → SporaApp`.
  *
  * `main.ts` is the plugin bootstrap: it builds the Vue app, installs
- * Pinia + the local router, and exposes `mount()` / `unmount()` for
- * the host's `apps/registry.ts` to call. We test the contract end-to-
- * end against a fake DOM target — verifying:
+ * Pinia + the local router, and exposes `mount()` / `unmount()` for the
+ * host's `apps/registry.ts` to call. We test that contract end-to-end
+ * against a fake DOM target.
  *
- *   1. `mount()` creates a Vue app and renders the plugin's CSS scope
- *      root, containing `<MemoriesPage />`, into the target.
- *   2. The plugin's API bridge receives the host's typed REST client
- *      so descendants (`getApi()`) resolve at runtime, not just at
- *      compile time.
- *   3. `unmount()` is idempotent — calling it before mount, twice in
- *      a row, or after mount all leave the target in a clean state.
- *   4. `window.SporaAppMemories` is installed (the IIFE lib wrapper
- *      also does this at build time; doing it again here makes the
- *      dev entry work standalone).
+ * `window.SporaAppMemories` is installed by the explicit assignment in
+ * `main.ts`; the IIFE lib wrapper does the same at build time.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { PluginHostContext } from '../src/shims'
@@ -84,8 +76,6 @@ describe('SporaApp (main.ts mount contract)', () => {
         const target = makeTarget()
         const hostContext = makeHostContext()
         await main.default.mount(target, hostContext)
-        // App.vue provides the CSS scope root around the sidebar + main outlet.
-        // After the initial promises settle, both contracts must be present.
         await new Promise((r) => setTimeout(r, 0))
         expect(target.querySelector('#spora-plugin-memories')).not.toBeNull()
         expect(target.querySelector('main')).not.toBeNull()
@@ -97,9 +87,6 @@ describe('SporaApp (main.ts mount contract)', () => {
         const target = makeTarget()
         const hostContext = makeHostContext()
         await main.default.mount(target, hostContext)
-        // The bridge's `getApi()` must now resolve to the same instance
-        // we passed in via `hostContext.api` (not throw "Plugin API
-        // not initialized").
         expect(client.getApi()).toBe(hostContext.api)
     })
 
@@ -132,7 +119,6 @@ describe('SporaApp (main.ts mount contract)', () => {
         await new Promise((r) => setTimeout(r, 0))
         expect(target.querySelector('main')).not.toBeNull()
         main.default.unmount(target)
-        // After unmount the rendered content is removed from the target.
         expect(target.querySelector('main')).toBeNull()
     })
 

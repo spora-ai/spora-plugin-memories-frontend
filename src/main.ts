@@ -17,11 +17,11 @@ import { HOST_CONTEXT_KEY, type PluginHostContext } from './shims'
  *
  * Important: the plugin uses a *local* Pinia instance and a *local*
  * Vue Router instance (with `createMemoryHistory`, since we never
- * own the browser address bar). Plugin-only state (the
- * `useMemoriesStore` reordering + view mode) lives here so it doesn't
- * pollute the host's stores. Host services (auth, theme) are reached
- * via the passed-in `hostContext.api` and `setApi(...)` initializes
- * the bridge.
+ * own the browser address bar). Plugin-only state (the memories and
+ * principals stores) lives here so it doesn't pollute the host's
+ * stores. Host services (auth, theme) are reached through the host's
+ * Pinia instance on `hostContext.pinia`; `setApi(...)` wires the
+ * host's REST client into the plugin's own bridge.
  *
  * The i18n instance is local too: the host does not publish its own,
  * so the plugin builds one from its own catalogue and seeds it with
@@ -45,7 +45,7 @@ const SporaApp: MountContract = {
     mount(target: HTMLElement, hostContext: PluginHostContext): void {
         // Wire the host's typed REST client into the plugin-local
         // `getApi()` container so `api/memories.ts` and
-        // `composables/useAgents.ts` can reach it without a global Pinia.
+        // `composables/useAgents.ts` can reach it.
         setApi(hostContext.api)
 
         const app = createApp(App, { hostContext })
@@ -56,19 +56,17 @@ const SporaApp: MountContract = {
         // every layer.
         app.provide(HOST_CONTEXT_KEY, hostContext)
 
-        // Plugin-local Pinia for plugin-only state.
         app.use(createPinia())
 
         // The plugin builds its own i18n instance from its own
         // catalogue; the host only tells us which language is active.
         app.use(createPluginI18n(hostContext.locale))
 
-        // Plugin-local router. We re-declare the routes here (App.vue
-        // builds its own copy of the same router; this one is the one
-        // `app.use(...)` installs). Both route names resolve to
-        // `MemoriesPage` — the page branches on `route.name` to switch
-        // between global and agent modes, and on `route.params.id` to
-        // pick the active agent.
+        // Plugin-local router. `App.vue` deliberately creates no router
+        // of its own — this is the one `app.use(...)` installs. Both
+        // route names resolve to `MemoriesPage`; the page branches on
+        // `route.name` to switch between global and agent modes, and on
+        // `route.params.id` to pick the active agent.
         const router = createRouter({
             history: createMemoryHistory(),
             routes: [
@@ -78,9 +76,9 @@ const SporaApp: MountContract = {
         })
         app.use(router)
 
-        // Stash the host's Pinia on `globalProperties` so any component
-        // can reach it via `this.$host` without polluting `provide`/
-        // `inject` keys that the host also uses.
+        // Stash the whole host context on `globalProperties` so any
+        // component can reach it via `this.$host` without polluting
+        // `provide`/`inject` keys that the host also uses.
         app.config.globalProperties.$host = hostContext
         app.mount(target)
 
@@ -105,9 +103,9 @@ const SporaApp: MountContract = {
 }
 
 // Vite's IIFE lib wrapper installs the value at `window.<lib.name>`
-// when `build.lib.name = 'SporaAppMemories'`. We additionally assign
-// here for the dev-mode entry (which doesn't go through
-// `vite build --lib`).
+// when `build.lib.name = 'SporaAppMemories'`. The explicit assignment
+// covers the cases where this module is evaluated directly instead of
+// through the built IIFE bundle.
 window.SporaAppMemories = SporaApp
 
 export default SporaApp

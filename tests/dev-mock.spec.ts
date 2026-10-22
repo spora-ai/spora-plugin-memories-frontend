@@ -1,11 +1,9 @@
 /**
- * Dev-mock coverage for the memories fixtures.
- *
  * Verifies the in-memory mock honours the same CRUD surface the PHP
  * controllers expose, so the dev sandbox (`npm run dev`) reflects
  * realistic backend behaviour — UUID path vars, `principal_id` /
- * `scope` / `type` on every row, the new `replace` endpoints, and
- * the `?type=` filter on both global and agent lists.
+ * `scope` / `type` on every row, the `replace` endpoints, and the
+ * `?type=` filter on both global and agent lists.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createMockApi, FIXTURE_AGENTS, FIXTURE_GLOBAL, FIXTURE_AGENT } from '../src/dev-mock'

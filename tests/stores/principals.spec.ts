@@ -1,11 +1,7 @@
 /**
- * Principals store — covers `loadPrincipals`, `selectPrincipal`,
- * default selection to the caller's user-principal, and the
- * no-localStorage invariant.
- *
- * Mirrors `spora-plugin-typst-frontend/tests/stores/principals.spec.ts`
- * for the new memories plugin. The wire shape is the host's
- * `/api/v1/principals/me` envelope — see `api/principals.ts`.
+ * Mirrors `spora-plugin-typst-frontend/tests/stores/principals.spec.ts`.
+ * The wire shape is the host's `/api/v1/principals/me` envelope — see
+ * `api/principals.ts`.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
