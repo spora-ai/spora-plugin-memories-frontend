@@ -1,21 +1,7 @@
 /**
- * MemoriesPage — unified memories shell.
- *
- * Cover the layout surface that the new design introduces:
- *   - Scope bar (PrincipalChipRow)
- *   - Mode row (Global / Agent: X segmented control + New button)
- *   - Agent dropdown toggle + selection
- *   - DocumentsPanel type filter dispatch (plan / docs / examples / context)
- *   - Editor state machine (empty / create / edit driven by ?create / ?memory)
- *   - Save / delete / cancel handlers wired to the correct store
- *     action based on the active route
- *   - Drag-to-reorder handler dispatch (global vs agent mode)
- *   - Route transitions (Global <-> Agent)
- *
- * Composition matches what `spora-frontend/tests/apps/memories/pages/MemoriesPage.spec.ts`
- * tests: we stub sub-components (`DocumentsPanel`, `PrincipalChipRow`,
- * `MemoryEditor`, `AlertBanner`) and let the page own the
- * orchestration logic.
+ * The page owns the orchestration, so the sub-components
+ * (`DocumentsPanel`, `PrincipalChipRow`, `MemoryEditor`, `AlertBanner`)
+ * are stubbed and only the events they emit matter here.
  */
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -35,7 +21,6 @@ vi.mock('vue-router', () => ({
     useRouter: () => ({ push: pushMock }),
 }))
 
-// Store actions
 const globalMemories = ref<Array<{ id: string; name: string; content: string; summary?: string | null; order: number; type: 'plan' | 'documentation' | 'examples' | 'context' }>>([])
 const agentMemories = ref<Array<{ id: string; name: string; content: string; summary?: string | null; order: number; type: 'plan' | 'documentation' | 'examples' | 'context' }>>([])
 const loadGlobalMemories = vi.fn().mockResolvedValue(undefined)
@@ -72,7 +57,6 @@ vi.mock('../../src/stores/memories', () => ({
     }),
 }))
 
-// Principals store
 const principalsRef = ref<Array<{ id: number; type: string; name: string }>>([])
 const selectedPrincipalId = ref<number | null>(null)
 const loadPrincipals = vi.fn().mockResolvedValue(undefined)
@@ -86,10 +70,10 @@ vi.mock('../../src/stores/principals', () => ({
     }),
 }))
 
-// useAgents — use the real composable so we can populate `agents` directly
-// via `__resetAgentsForTesting`. The mock below is redundant, but we
-// keep it minimal in case the page reaches into the composable for
-// fields beyond `agents` and `fetchAgents`.
+// useAgents — the mock below is deliberately minimal, so the real
+// composable is kept reachable for fields beyond `agents` and
+// `fetchAgents` (the page populates `agents` via
+// `__resetAgentsForTesting`).
 
 import { __resetAgentsForTesting } from '../../src/composables/useAgents'
 const agentsRef = ref<Array<{ id: number; name: string }>>([])
@@ -526,7 +510,6 @@ describe('MemoriesPage — editor routing', () => {
         updateAgentMemory.mockResolvedValueOnce(updated)
         const wrapper = mountPage()
 
-        // Create
         routeObj.query = { create: '1' }
         await flushPromises()
         await wrapper.find('[data-testid="ed-save"]').trigger('click')
@@ -534,14 +517,12 @@ describe('MemoriesPage — editor routing', () => {
         expect(createAgentMemory).toHaveBeenCalledWith(7, expect.any(Object))
         expect(pushMock).toHaveBeenCalledWith({ name: 'agent-memories', params: { id: '7' }, query: { memory: 'mem-new' } })
 
-        // Edit
         routeObj.query = { memory: 'mem-x' }
         await flushPromises()
         await wrapper.find('[data-testid="ed-save-update"]').trigger('click')
         await flushPromises()
         expect(updateAgentMemory).toHaveBeenCalledWith(7, 'mem-x', expect.any(Object))
 
-        // Delete
         deleteAgentMemory.mockResolvedValueOnce(undefined)
         await wrapper.find('[data-testid="ed-delete"]').trigger('click')
         await flushPromises()

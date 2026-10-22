@@ -6,9 +6,9 @@
  * stay in JS memory — the browser address bar shows the host path
  * (`/apps/memories` or subpaths). To support deep-linking + browser
  * back/forward across real URLs (e.g. an operator shares
- * `/apps/memories/agents/42?memory=7` with a colleague), the bundle
- * can read `hostContext.router.currentRoute.value.path` via these
- * helpers and route accordingly.
+ * `/apps/memories/agents/42` with a colleague), the bundle can read
+ * `hostContext.router.currentRoute.value.path` via these helpers and
+ * route accordingly.
  *
  * Today the bundle never calls these (the in-memory router covers
  * all internal UX). They live here so future "deep-link to edit
@@ -17,14 +17,14 @@
  */
 
 /**
- * Recognised paths under `/apps/memories/`.
- *   ''          → global memories (root)
- *   'agents'    → first agent (no specific id — falls back to sidebar
- *                 default)
+ * Recognised paths under `/apps/memories/`:
+ *   ''                → global memories (root)
+ *   'agents'          → agent scope, no id resolved yet
  *   'agents/:id'      → agent memories for agent `:id`
- *   'agents/:id/:memoryId' → deep-link into edit mode (memoryId query
- *                              param is preserved for the page's
- *                              `applyQueryParams()` to detect)
+ *   'agents/:id/:n'   → agent scope plus a numeric trailing segment
+ *
+ * Both ids are parsed as numbers; a non-numeric segment yields `null`
+ * for that id instead of failing the whole match.
  */
 const PLUGIN_PREFIX = '/apps/memories'
 
@@ -35,9 +35,6 @@ export interface PluginRouteMatch {
 }
 
 export function matchPluginPath(path: string): PluginRouteMatch | null {
-    // Strip leading `/apps/memories` and any trailing slash so we can
-    // split the residual into segments without accidental double-slash
-    // edge cases.
     if (!path.startsWith(PLUGIN_PREFIX)) {
         return null
     }

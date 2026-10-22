@@ -1,14 +1,6 @@
 /**
- * MemoryEditor — single memory create/edit form.
- *
- * Plug-side port of `spora-frontend/tests/apps/memories/components/MemoryEditor.spec.ts`.
- * All `@/...` paths rerouted to plugin-local imports (single-level
- * up to `../...`). The `md-editor-v3` library is stubbed in
- * `tests/setup.ts` so happy-dom doesn't try to load CodeMirror 6.
- *
- * Covers the v2 surface: type select, attach-media via the host's
- * `openMediaPicker`. The earlier `find` / `new_text` surgical-edit
- * disclosure has been removed as part of the Idea 1 redesign.
+ * The `md-editor-v3` library is stubbed in `tests/setup.ts` so happy-dom
+ * doesn't try to load CodeMirror 6.
  */
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi } from 'vitest'
@@ -222,10 +214,6 @@ describe('MemoryEditor — markdown preview default', () => {
         // passed in includes the `preview` entry. Easier to verify
         // here by string-searching the rendered HTML for the prop name.
         expect(wrapper.html()).toContain('md-editor-stub')
-        // The editor's preview prop is currently false; toggling
-        // happens inside md-editor-v3's own state once the user
-        // presses the toolbar button. Don't render a separate
-        // preview pane by default.
         expect(wrapper.find('[data-testid="md-preview-stub"]').exists()).toBe(false)
     })
 })

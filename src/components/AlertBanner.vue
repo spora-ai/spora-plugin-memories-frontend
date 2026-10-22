@@ -1,7 +1,5 @@
 <script setup lang="ts">
 /**
- * AlertBanner — small status banner used by the memories pages.
- *
  * Verbatim copy of `spora-frontend/src/components/ui/AlertBanner.vue`.
  * The plugin is isolated from the host's UI library, so we ship the
  * same component locally. If the host redesigns its banner, this one

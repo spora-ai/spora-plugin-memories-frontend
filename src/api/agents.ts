@@ -1,16 +1,12 @@
 /**
- * Agents API client.
- *
  * Surfaces `/agents` with optional `?principal_id=` filtering so the
- * memories plugin's `PrincipalChipRow` can narrow the agent dropdown
- * to the agents owned by the active principal. Multiple ids go on as
- * repeatable query keys (Symfony reads `query->all()['principal_id']`
- * as an array when more than one is present), matching the host's
- * `useAgentStore.fetchAgents(principalIds)` convention exactly.
+ * `PrincipalChipRow` can narrow the agent dropdown to the agents owned
+ * by the active principal.
  *
- * Tests can mock this module to verify that principal filters are
- * threaded through; nothing here reaches beyond the plugin's
- * shared `api/client.ts` host bridge.
+ * Multiple ids go on as repeatable query keys — Symfony reads
+ * `query->all()['principal_id']` as an array when more than one is
+ * present — matching the host's `useAgentStore.fetchAgents(principalIds)`
+ * convention.
  */
 import { getApi } from './client'
 import type { AgentSummary } from '../types'

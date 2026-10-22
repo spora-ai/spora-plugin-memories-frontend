@@ -1,11 +1,9 @@
 /**
  * Memory API client for global and agent-scoped memory operations.
  *
- * The original Spora frontend had these functions reach for the host's
- * `@/api/client` import. In the plugin we route through our local
- * `getApi()` container so the host's `hostContext.api` is used verbatim —
- * preserving CSRF tokens, base URL, and envelope unwrap. Tests can mock
- * either this module (preferred) or `api/client.ts`.
+ * The plugin routes through the local `getApi()` container rather than
+ * the host's `@/api/client` import, so the host's `hostContext.api` is
+ * used verbatim — preserving CSRF tokens, base URL, and envelope unwrap.
  *
  * Every function accepts an optional `principalId` — the principal the
  * operator currently has selected in `PrincipalChipRow`. When set, it's
@@ -15,12 +13,9 @@
  * and 403s otherwise. When the operator's user-principal is the active
  * scope the value is null and the param is omitted entirely.
  *
- * `?principal_id=` is a single-id query string (not repeatable) — the
- * plugin's UI only ever switches between two principals at a time
- * (the user's own + one of their groups), so a single id is enough.
- * The host's `/agents` endpoint accepts repeatable ids because the
- * sidebar shows the union of many principals; for memories we keep the
- * surface minimal.
+ * `?principal_id=` carries a single id, not a repeatable list: the chip
+ * row selects exactly one principal at a time, so the memories surface
+ * never needs the union that `/agents` supports.
  */
 import { getApi } from './client'
 import type {
@@ -33,7 +28,8 @@ import type {
 
 /**
  * Build a path with optional `?principal_id=` and `?type=` query
- * string entries. Encoded once so every API call looks identical.
+ * string entries. Encoded in one place so every API call looks
+ * identical.
  */
 function withQuery(path: string, principalId: number | null, type?: MemoryType): string {
     const params: string[] = []

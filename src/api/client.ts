@@ -7,10 +7,9 @@
  * unwrap — we don't recreate any of that here, we just hand the passed-in
  * instance back to the rest of the plugin.
  *
- * The container holds one module-level reference. `setApi()` is called
- * once per `mount()`; `getApi()` is then used by `api/memories.ts` and
- * any plugin-local fetch helper. Tests can either `vi.mock()` this module
- * directly or re-`setApi()` with a stub.
+ * `setApi()` is called once per `mount()`; `getApi()` is then used by
+ * `api/memories.ts` and any plugin-local fetch helper. Tests can either
+ * `vi.mock()` this module directly or re-`setApi()` with a stub.
  *
  * Mirrors the host's `spora-frontend/src/api/client.ts → ApiError` shape:
  * `{ message, code, status }`. Plugin code only needs `message` (for

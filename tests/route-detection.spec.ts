@@ -1,11 +1,8 @@
 /**
- * route-detection helper coverage.
- *
  * The plugin-local router uses `createMemoryHistory()` so the active
  * route state lives in JS memory; these helpers exist for future
  * deep-linking scenarios where the host's URL needs to drive the
- * plugin's view. Asserting them now pins down the helper before
- * feature work lands on top.
+ * plugin's view.
  */
 import { describe, expect, it } from 'vitest'
 import { isPluginPath, matchPluginPath } from '../src/lib/route-detection'

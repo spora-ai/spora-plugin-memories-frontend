@@ -1,20 +1,8 @@
 /**
- * memories store — covers CRUD + reorder actions for global and
- * agent-scoped memories.
- *
- * Plug-side port of `spora-frontend/tests/apps/memories/stores/memories.spec.ts`.
- *
- * Notable diffs:
- *   - `vi.mock('@/api/client', ...)` → `vi.mock('../../src/api/client', ...)`
- *     since `ApiError` is now plugin-local (mirrors the host's shape).
- *   - `vi.mock('@/apps/memories/api/memories', ...)` →
- *     `vi.mock('../../src/api/memories', ...)`
- *   - The import path for `useMemoriesStore` matches the plugin layout.
- *   - `usePrincipalsStore` is stubbed because the memories store now
- *     reads `selectedPrincipalId` from it on every action. Stub
- *     exposes a settable `selectedPrincipalId` so a test can pin the
- *     value the store sees, and a default of `null` so the rest of the
- *     suite is unaffected.
+ * `usePrincipalsStore` is stubbed because the memories store reads
+ * `selectedPrincipalId` from it on every action. The stub exposes a
+ * settable `selectedPrincipalId` so a test can pin the value the store
+ * sees, and a default of `null` so the rest of the suite is unaffected.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
@@ -128,7 +116,6 @@ describe('memories store', () => {
             await store.deleteAgentMemory(7, id)
             await store.reorderAgentMemories(7, [id])
 
-            // Every call's first non-type/principal argument carries the principal id.
             expect(getGlobalMemoriesMock).toHaveBeenCalledWith(99, undefined)
             expect(createGlobalMemoryMock).toHaveBeenCalledWith(99, expect.any(Object))
             expect(updateGlobalMemoryMock).toHaveBeenCalledWith(id, 99, expect.any(Object))

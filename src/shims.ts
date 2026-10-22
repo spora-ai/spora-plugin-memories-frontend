@@ -6,12 +6,12 @@
  *
  * Defined once and imported by every bootstrap path
  * (`src/main.ts` for the production mount, `src/dev-main.ts` for the
- * standalone dev sandbox). Earlier the production entry declared a
- * duplicate `Symbol('spora-memories-host-context')` locally and the
- * dev entry didn't provide either key at all — `MemoriesPage` then
- * warned `[Vue warn]: injection "Symbol(spora-memories-host-context)"
- * not found` and the `<MemoryEditor :host-context>` prop was
- * `undefined`, silently disabling "Attach media".
+ * standalone dev sandbox). The production entry used to declare a
+ * duplicate `Symbol('spora-memories-host-context')` locally and the dev
+ * entry didn't provide the key at all — `MemoriesPage` then warned
+ * `[Vue warn]: injection "Symbol(spora-memories-host-context)" not
+ * found` and the `<MemoryEditor :host-context>` prop was `undefined`,
+ * silently disabling "Attach media".
  */
 import type { InjectionKey } from 'vue'
 import type { MediaAsset, MediaPickerOptions } from './types'
@@ -29,10 +29,9 @@ export const HOST_CONTEXT_KEY: InjectionKey<PluginHostContext> = Symbol('spora-m
  *                       *local* Pinia (for plugin-only state) but should
  *                       NOT call `setActivePinia(host.pinia)` — that
  *                       would collide with the host's stores.
- *   - `theme`         — `'light' | 'dark'` snapshot at mount time.
- *                       Plugins read this once and trust it; if the host
- *                       re-themes, the slot is unmounted and remounted,
- *                       so we get a fresh value.
+ *   - `theme`         — `'light' | 'dark'` snapshot the host takes when
+ *                       it builds the context. A plugin that needs the
+ *                       live value reads `useThemeStore(host.pinia)`.
  *   - `route`         — the host's current route. Plugins render under
  *                       `/apps/<slug>` already; this is for breadcrumbs
  *                       and back-links.
@@ -42,10 +41,10 @@ export const HOST_CONTEXT_KEY: InjectionKey<PluginHostContext> = Symbol('spora-m
  *   - `openMediaPicker` — the host's `useMediaPicker` composable
  *                        (see `spora-frontend/src/composables/useMediaPicker.ts`).
  *                        Resolves with the operator's selection, or `[]`
- *                        on cancel. **Purely additive** — plugins that
- *                        predate PR-1 simply omit the call. The picker
- *                        mounts a fresh Vue app at body level per
- *                        invocation, so concurrent callers don't collide.
+ *                        on cancel. Optional — a plugin that doesn't need
+ *                        a picker simply omits it. The picker mounts a
+ *                        fresh Vue app at body level per invocation, so
+ *                        concurrent callers don't collide.
  *
  * Anything else (auth, runtime config, etc.) is reachable via the host's
  * Pinia stores — use `useSomeHostStore(host.pinia)` rather than reaching
@@ -56,10 +55,10 @@ export interface PluginHostContext {
     /**
      * The host's `spora-frontend/src/api/client.ts → request<T>()` unwraps
      * the standard `{ data: T }` envelope before handing the value to the
-     * caller (see line 117: `body.data ?? body`). Plugins receive `T`
-     * directly — for the Memories list endpoints that's `MemoryResource[]`
-     * or the unwrapped subfield (`{ memories }`/`{ memory }` envelopes
-     * still need to be opened here, as the PHP controllers return them).
+     * caller (`body.data ?? body`). Plugins receive `T` directly — for
+     * the Memories list endpoints that's `MemoryResource[]` or the
+     * unwrapped subfield (`{ memories }`/`{ memory }` envelopes still
+     * need to be opened here, as the PHP controllers return them).
      */
     api: {
         get: <T = unknown>(path: string, query?: Record<string, unknown>) => Promise<T>
@@ -81,9 +80,9 @@ export interface PluginHostContext {
     /**
      * Host's Vue Router instance. Plugins read `currentRoute` (a
      * `shallowRef`) for reactive URL tracking, and call `push(to)` for
-     * client-side navigation. The host already exposes the full Router
-     * — see `spora-frontend/src/apps/registry.ts → PluginHostContext`
-     * — but plugins only see the surface they actually use.
+     * client-side navigation. The host exposes the full Router — see
+     * `spora-frontend/src/apps/registry.ts → PluginHostContext` — but
+     * plugins only see the surface they actually use.
      */
     router: {
         push: (to: string) => Promise<unknown>

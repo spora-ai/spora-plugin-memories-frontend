@@ -1,12 +1,5 @@
 /**
- * Component-level smoke tests for the new plugin-local modules.
- *
- * - `AlertBanner` renders the right color class per type.
- * - `useAgents` composable returns the same ref across calls and
- *   caches the fetch.
- * - `MemoryEditor` emits the right shape on save (re-asserts the
- *   spec — covered here for self-containedness; the dedicated
- *   `components/MemoryEditor.spec.ts` has the full set).
+ * Component-level smoke tests for the plugin-local modules.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'

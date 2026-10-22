@@ -1,8 +1,3 @@
-/**
- * DocumentsPanel — sidebar with `All` / `Plans` / `Docs` / `Examples`
- * / `Context` filter chips, a draggable memory list, and a footer
- * "New document" button.
- */
 import { mount } from '@vue/test-utils'
 import { describe, it, expect } from 'vitest'
 import DocumentsPanel from '../../src/components/DocumentsPanel.vue'
@@ -103,7 +98,6 @@ describe('DocumentsPanel', () => {
         expect(rows.length).toBe(2)
         expect(rows[0]?.attributes('data-memory-id')).toBe('a')
         expect(rows[1]?.attributes('data-memory-id')).toBe('b')
-        // The active row gets the highlighted border-primary class:
         expect(rows[1]?.classes().join(' ')).toContain('border-primary')
         expect(rows[0]?.classes().join(' ')).not.toContain('border-primary')
     })

@@ -6,12 +6,9 @@ import { VueDraggable } from 'vue-draggable-plus'
 import type { MemoryResource, MemoryType } from '../types'
 
 /**
- * DocumentsPanel — the documents sidebar for the unified memories page.
- *
- * Renders a single list of documents for whatever scope the page is
- * currently in (`global` or `agent`). The type filter chips live above
- * the list because they filter this list — placing them at the top of
- * the sidebar keeps them adjacent to the rows they affect.
+ * The type filter chips sit above the list because they filter this
+ * list — placing them at the top of the sidebar keeps them adjacent to
+ * the rows they affect.
  *
  * `All` is the default selected chip (no type filter active). Clicking
  * a specific chip filters to that type; clicking it again clears the
@@ -31,8 +28,7 @@ const { t } = useI18n()
  * label at import time, before the locale is known.
  *
  * The chip label is plural ("Plans") and the badge is the short form
- * ("Plan") — they are separate keys, and the German keeps the same
- * distinction.
+ * ("Plan") — separate keys, because the German keeps the distinction.
  */
 const TYPES = computed<ReadonlyArray<{ value: MemoryType; label: string }>>(() => [
     { value: 'plan', label: t('Plans') },
@@ -91,11 +87,10 @@ function chipClass(value: MemoryType | null): string {
 }
 
 function onChipClick(value: MemoryType | null): void {
-    // Toggle behaviour lives here, not in the page — the page holds
-    // the active filter as a ref, but the panel already knows
-    // `props.typeFilter` so it can decide whether this click is
-    // "set to {value}" or "clear the active filter". The page treats
-    // a `null` payload as a clear.
+    // Toggle behaviour lives here, not in the page: the panel already
+    // knows `props.typeFilter`, so it can decide whether this click is
+    // "set to {value}" or "clear the active filter". The page treats a
+    // `null` payload as a clear.
     const next = props.typeFilter === value ? null : value
     emit('select-type', next)
 }

@@ -14,35 +14,31 @@ import type {
 import type { PluginHostContext } from '../shims'
 
 /**
- * Memory editor — used by both Global and Agent memories to create or
- * edit a memory body. The header (Name, Type, Summary) sits above a
- * `md-editor-v3` Markdown pane; Save / Delete / Cancel buttons live
- * below it.
+ * Memory editor — creates or edits a memory body.
  *
- * Differs from the host-side
- * `spora-frontend/src/apps/memories/components/MemoryEditor.vue`:
- *   - Drops the `@/components/MarkdownEditor.vue` wrapper and uses
- *     `md-editor-v3` directly. The wrapper is a host SPA concern
- *     (theme store integration, bubble-mode popover); here the editor
- *     is mounted in the plugin slot with the host's
- *     `hsl(var(--foreground))` tokens already in scope.
- *   - Theme prop is fixed to `'light'`/`'dark'` based on the snapshot
- *     `hostContext.theme`. Plugins don't get the live theme store; the
- *     host unmounts and remounts the slot on theme change.
- *   - `toolbars` mirrors the host's `MarkdownEditor.vue` `full` mode set
- *     minus `github`/`mermaid`/`formula` (we don't ship diagrams/LaTeX
- *     in memories content). Locale is pinned to `en-US`.
- *   - `:preview="false"` opens the editor in edit-only mode by default;
- *     the toolbar's `preview` button still toggles between edit-only,
- *     split and preview-only — operators opt into the preview pane
- *     instead of getting it for free. md-editor-v3 stores the user's
- *     choice within the session via the toolbar, so toggling it back
- *     on once keeps it on across reopens until the page reloads.
+ * Unlike the host SPA, the plugin uses `md-editor-v3` directly instead of
+ * the host's `@/components/MarkdownEditor.vue` wrapper: that wrapper is a
+ * host SPA concern (theme store integration, bubble-mode popover), while
+ * here the editor is mounted in the plugin slot with the host's
+ * `hsl(var(--foreground))` tokens already in scope.
  *
- * Action buttons emit `save(data)` / `delete()` / `cancel()`. The
- * earlier `replace` emit (surgical-edit substring replacement) was
- * removed as part of the Idea 1 redesign; the editor is now strictly
- * a save-or-cancel surface.
+ * The `theme` prop is never bound by the page, so `md-editor-v3` always
+ * renders with its `'light'` theme. `hostContext.theme` is a snapshot the
+ * host takes when it builds the context; a plugin that wants the live
+ * value reads `useThemeStore(hostContext.pinia)` instead.
+ *
+ * `toolbars` mirrors the host's `MarkdownEditor.vue` `full` mode set
+ * minus `github`/`mermaid`/`formula` (we don't ship diagrams/LaTeX in
+ * memories content). Locale is pinned to `en-US`.
+ *
+ * `:preview="false"` opens the editor in edit-only mode by default; the
+ * toolbar's `preview` button still toggles between edit-only, split and
+ * preview-only — operators opt into the preview pane instead of getting
+ * it for free.
+ *
+ * Action buttons emit `save(data)` / `delete()` / `cancel()` — the editor
+ * is strictly a save-or-cancel surface. The surgical `replace` endpoint
+ * survives in the API and store layers, but no UI control calls it.
  */
 
 // Hoisted to a named alias so the `'-'` separator is declared once instead of

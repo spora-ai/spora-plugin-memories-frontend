@@ -1,9 +1,6 @@
 /**
- * Wire shape for a single Memory row.
- *
- * Fields documented here are the ones the UI actually renders. The PHP
- * model carries a few additional columns (metadata, etc.) that the
- * editor surfaces in the form.
+ * Wire shape for a single Memory row — one field per column on the
+ * PHP `Memory` model.
  */
 
 export type MemoryType = 'plan' | 'documentation' | 'examples' | 'context'
@@ -50,6 +47,11 @@ export interface MediaPickerOptions {
     title?: string
 }
 
+/**
+ * Media asset as handed back by the host's media picker. Diverges from
+ * `spora-frontend/src/types/media.ts → MediaAsset`: the plugin omits the
+ * host's `is_temporary` retention flag and adds `has_markdown`.
+ */
 export interface MediaAsset {
     id: string
     filename: string | null

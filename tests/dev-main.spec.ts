@@ -2,22 +2,19 @@
  * Dev sandbox bootstrap — `src/dev-main.ts`.
  *
  * Mirrors the production slot exactly so the standalone `npm run dev`
- * sandbox doesn't drift from `src/main.ts`. The original entry
- * mounted the app, but never called `app.provide(HOST_CONTEXT_KEY,
- * hostContext)` and never `app.use(router)` — that surfaced as
+ * sandbox doesn't drift from `src/main.ts`. The original entry mounted
+ * the app but never called `app.provide(HOST_CONTEXT_KEY, hostContext)`
+ * and never `app.use(router)` — that surfaced as
  * `[Vue warn]: injection "Symbol(spora-memories-host-context)" not
  * found` (and a sibling `Symbol(route location)` not found) and
  * silently disabled the `<MemoryEditor :host-context>` prop, so
  * clicking "Attach media" was a no-op.
  *
  * The contract under test is the one-paragraph boot path: importing
- * dev-main from a clean DOM:
- *   - does not install anything on `window` (production does);
- *   - mounts the app under `#app`;
- *   - does NOT emit any of the `injection ... not found` Vue
- *     warnings that the user's bug report called out. This is the
- *     regression guard that prevents re-introducing either of the
- *     two missing `app.use(...)` / `app.provide(...)` calls.
+ * dev-main from a clean DOM does not install anything on `window`
+ * (production does), mounts the app under `#app`, and emits none of the
+ * `injection ... not found` Vue warnings. That last one is the
+ * regression guard against re-introducing either missing call.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 

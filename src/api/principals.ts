@@ -1,6 +1,4 @@
 /**
- * Principals API client.
- *
  * Wire shape matches `GET /api/v1/principals/me` from spora-core.
  * Returns the principals the caller can act as (their own
  * user-principal + group-principals they're a member of) so the

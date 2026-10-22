@@ -1,6 +1,4 @@
 /**
- * The German catalogue, rendered.
- *
  * `en.json` is an identity map, so the English assertions elsewhere in
  * the suite cannot tell a translated component from an untranslated
  * one. This spec mounts the components with a `de` instance and reads

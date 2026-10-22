@@ -8,8 +8,8 @@
  * (`/memories`, `/memories/:id`, `/agents/:id/memories`, etc.) so
  * the UI is exercisable end-to-end without a database. For real DB-
  * backed testing, run the host SPA + this plugin's dev server + PHP
- * together (see `spora-workspace/plans/memories-v2.md` PR-3, and
- * `spora-frontend/vite.config.ts → SPORA_PLUGIN_DEV_PORTS`).
+ * together — `spora-frontend/vite.config.ts → SPORA_PLUGIN_DEV_PORTS`
+ * is what wires the two dev servers to each other.
  */
 import type { MemoryResource, AgentSummary, MemoryType, MediaPickerOptions, MediaAsset } from './types'
 import type { PluginHostContext } from './shims'
@@ -21,9 +21,8 @@ const CURRENT_USER_ID = 42
 function makeId(): string {
     nextId++
     // Hex-shaped UUIDv7 stand-in; the real backend uses
-    // `Ramsey\Uuid\Uuid::uuid7()`. The shape matters because the
-    // editor's id-derived DOM ids collide on hex boundaries, so we
-    // keep the dev mock deterministic.
+    // `Ramsey\Uuid\Uuid::uuid7()`. The counter keeps the ids stable
+    // for the lifetime of the dev server.
     const hex = nextId.toString(16).padStart(12, '0')
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${nextId.toString(16).padStart(3, '0').slice(-3)}-b012-${hex}${hex}`.slice(0, 36)
 }
@@ -37,9 +36,8 @@ const VALID_MEMORY_TYPES: MemoryType[] = ['plan', 'documentation', 'examples', '
 
 /**
  * Coerce an unknown `?type=` query value into a known `MemoryType`,
- * falling back to `'context'` for unknown / missing values. Hoisted to
- * module scope so it isn't reallocated per `createMockApi()` call
- * (typescript:S7721).
+ * falling back to `'context'` for unknown / missing values. Module scope
+ * so the lookup table isn't reallocated per `createMockApi()` call.
  */
 function matchType(memoryType: string | undefined): MemoryType {
     return memoryType !== undefined && (VALID_MEMORY_TYPES as string[]).includes(memoryType)
@@ -76,8 +74,8 @@ function parseGlobalListQuery(path: string): { type: MemoryType | null; principa
 
 /**
  * Pull every `?principal_id=N` (repeated) into a deduped list of
- * positive ints. Returns null when the filter is absent or empty so
- * callers can fall back to "every visible principal".
+ * positive ints. `null` means "no filter" — callers fall back to every
+ * visible principal.
  */
 function parsePrincipalIdList(params: URLSearchParams): number[] | null {
     const raw = params.getAll('principal_id')
@@ -157,7 +155,7 @@ function buildMemory(
 /**
  * Apply a surgical replace on `current`, throwing on missing or
  * ambiguous anchors. Centralised so the global and agent replace
- * branches share the exact-match contract.
+ * branches share the exact-match contract the PHP controller enforces.
  */
 function applyReplace(input: ReplaceableBody, current: string): string {
     const anchor = input.find ?? ''
@@ -170,8 +168,8 @@ function applyReplace(input: ReplaceableBody, current: string): string {
 /**
  * Pull `?principal_id=N` (repeated) from a `/agents?…` style path so
  * the dev-mock honours the same URL convention the typed
- * `api/agents` client uses. Returns null when the param is absent or
- * empty after dedup.
+ * `api/agents` client uses. `null` when the param is absent or empty
+ * after dedup.
  */
 function parseAgentsPathQuery(path: string): number[] | null {
     const match = /^\/agents(?:\?(.+))?$/.exec(path)
@@ -190,10 +188,8 @@ function isPrincipalFilter(ids: number[] | null | undefined): ids is number[] {
 }
 
 /**
- * Module-scope wrapper around `AGENTS_WITH_PRINCIPAL` for the dev
- * mock. Hoisted out of `createMockApi()` so SonarCloud S7721 stops
- * asking for it; closure-captured state in the dev mock is just
- * the fixture rows.
+ * Module-scope wrapper around `AGENTS_WITH_PRINCIPAL`, hoisted out of
+ * `createMockApi()` so it isn't reallocated per call.
  */
 function listAgentsScoped(principalIds: number[] | null): AgentSummary[] {
     const rows = isPrincipalFilter(principalIds)
@@ -232,8 +228,7 @@ function fixtures(): MemoryResource[] {
         },
         {
             // Group-scoped memory — only visible when the operator has
-            // picked the group principal in PrincipalChipRow. Mirrors
-            // the live fixture that the bug-fix verification reused.
+            // picked the group principal in PrincipalChipRow.
             id: uid(3),
             principal_id: 99,
             agent_id: null,
@@ -298,8 +293,7 @@ const AGENTS: AgentSummary[] = [
 ]
 // `Agent` from a real controller carries `principal_id`; the dev mock
 // pretends each row is owned by one principal. The frontend only
-// consumes `{ id, name }` today but the principals test reads this
-// directly to scope the dropdown.
+// consumes `{ id, name }`, but the principal filter needs the owner.
 interface AgentWithPrincipal extends AgentSummary { principal_id: number }
 const AGENTS_WITH_PRINCIPAL: AgentWithPrincipal[] = [
     { ...AGENTS[0], principal_id: 42 },
@@ -353,15 +347,14 @@ export function createMockApi(): PluginHostContext['api'] {
 
     return {
         async get<T>(path: string, query?: Record<string, unknown>): Promise<T> {
-            // The new typed `api/agents` client passes repeatable
-            // principal_ids as an array via query. The dev mock also
-            // honours `?principal_id=N` parsed out of the path so the
-            // legacy `globalId/agentList` regex parsers keep working.
+            // The typed `api/agents` client passes repeatable
+            // principal_ids as an array via the query bag; the path may
+            // also carry `?principal_id=N` inline.
             const queryPrincipalIds = readPrincipalIdsFromQuery(query)
-            // `/agents` matches with an optional trailing query — the
-            // old `path === '/agents'` strict-equality check would
-            // miss `/agents?principal_id=42` since the URL parser
-            // hands over the query string with the path.
+            // `/agents` matches with an optional trailing query — a
+            // strict `path === '/agents'` check would miss
+            // `/agents?principal_id=42`, since the URL parser hands the
+            // query string over together with the path.
             if (path === '/agents' || path.startsWith('/agents?')) {
                 const inline = parseAgentsPathQuery(path)
                 const filters = inline ?? queryPrincipalIds
@@ -514,8 +507,8 @@ function readPrincipalIdsFromQuery(query: Record<string, unknown> | undefined): 
 /**
  * Dev-only stub for `hostContext.openMediaPicker`. Returns a single
  * sample asset so the editor's `![](<asset_url>)` insertion path is
- * exercisable end-to-end without the host SPA. The shape mirrors
- * `spora-frontend/src/types/media.ts → MediaAsset`.
+ * exercisable end-to-end without the host SPA. The shape mirrors the
+ * plugin-local `MediaAsset` in `src/types.ts`.
  */
 export function createMockOpenMediaPicker(): (options?: MediaPickerOptions) => Promise<MediaAsset[]> {
     return async (_options?: MediaPickerOptions): Promise<MediaAsset[]> => {
