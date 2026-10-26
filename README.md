@@ -40,6 +40,34 @@ npm run dev   # vite dev server on :5175
 
 The host SPA's `vite.config.ts` proxies `/plugins/memories` to `:5175` so editing `src/*` updates the panel without rebuilding the host. The dev sandbox uses an in-memory mock API (`src/dev-mock.ts`) so it renders without the PHP backend — set `SPORA_PLUGIN_DEV_PORTS=memories:5175` on the host for the cross-port proxy. The path is keyed on the plugin slug, the same key the env var uses.
 
+## Languages
+
+The panel ships its own `vue-i18n` instance (`src/i18n/index.ts`) built from its own catalogue — the host does not publish its instance, because that would couple the panel's catalogue lifetime to the host's and to a version-skewed peer range. The locale comes from the host through `PluginHostContext.locale`; the dev sandbox reads it from `?locale=de`.
+
+```
+src/locales/en.json   generated identity map — every key maps to itself
+src/locales/de.json   the German catalogue
+```
+
+**The catalogue key is the English source string** — `t('Save Changes')`, not a slug. `en.json` is therefore generated, never hand-edited, and a copy edit orphans the German entry that was paired with it — which is exactly what the extractor's orphan rule catches.
+
+```bash
+npm run i18n:extract   # regenerate en.json from the source and report what is untranslated
+npm run i18n:check     # the CI gate: en.json drift, a locale's key set, untranslated values, and copy outside t()
+```
+
+`npm run i18n:check` fails on an operator-facing string that is not wrapped in `t()`. The panel is the operator's whole surface, so a string that missed the catalogue is a string the operator reads in English.
+
+### Catalogue grammar
+
+The extractor accepts vue-i18n's interpolation syntax — `{name}`, `{0}` — as long as the braces are a well-formed placeholder. The **host's** extractor is stricter and rejects any key carrying a raw `{`, `}` or `|`, so the host's own catalogue holds no placeholder at all. The two grammars never meet: this panel's catalogue is read by this panel's extractor, and the host's `i18n:check` harvests the framework's own sources and never opens a plugin's catalogue. The difference is safe — vue-i18n compiles at render either way — and stable under the merge, because a key *is* the English source text, so a string present in both catalogues carries the same placeholders in both. Do not rewrite this panel's keys to satisfy the host's rule, and do not loosen the host's rule to match this one.
+
+### What stays English, and why
+
+- **A memory's name, summary and body** — the operator's own content, and model input. Translating them would rename the operator's memory behind their back.
+- **`Principal` / `Principals`** — the house term. The German catalogue keeps it untranslated ("Die Principals konnten nicht geladen werden."), so a German operator reads "Principal" here too, and translating it would put two words for one concept on the same screen.
+- **The document-type slugs** — `plan`, `documentation`, `examples`, `context` are the wire values the contract stores and filters on. The panel shows a translated label beside them; the slug itself is never rendered.
+
 ## Mount contract
 
 The IIFE bundle installs `window.SporaAppMemories` (the PascalCase of the slug) with two methods:

@@ -23,8 +23,10 @@
  *   'agents/:id'      → agent memories for agent `:id`
  *   'agents/:id/:n'   → agent scope plus a numeric trailing segment
  *
- * Both ids are parsed as numbers; a non-numeric segment yields `null`
- * for that id instead of failing the whole match.
+ * Both ids are parsed as numbers, and only a run of digits counts as one:
+ * a non-numeric agent id fails the whole match (the agent scope is
+ * unusable without one), a non-numeric memory id yields `memoryId: null`
+ * (the memory half is optional).
  */
 const PLUGIN_PREFIX = '/apps/memories'
 
@@ -50,18 +52,28 @@ export function matchPluginPath(path: string): PluginRouteMatch | null {
     if (segments.length === 1) {
         return { scope: 'agent', agentId: null, memoryId: null }
     }
-    const agentId = Number(segments[1])
-    if (!Number.isFinite(agentId)) {
+    const agentId = parseId(segments[1])
+    if (agentId === null) {
         return null
     }
     if (segments.length === 2) {
         return { scope: 'agent', agentId, memoryId: null }
     }
-    const memoryId = Number(segments[2])
-    if (!Number.isFinite(memoryId)) {
+    const memoryId = parseId(segments[2])
+    if (memoryId === null) {
         return { scope: 'agent', agentId, memoryId: null }
     }
     return { scope: 'agent', agentId, memoryId }
+}
+
+/**
+ * Only a run of digits counts as an id: `Number('')` is `0` and
+ * `Number(' 12 ')` is `12`, so a plain coercion reads an empty segment as
+ * the id `0` — an agent the server would never route to.
+ */
+function parseId(segment: string): number | null {
+    if (!/^\d+$/.test(segment)) return null
+    return Number(segment)
 }
 
 export function isPluginPath(path: string): boolean {

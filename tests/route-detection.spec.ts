@@ -48,6 +48,19 @@ describe('route-detection', () => {
         it('returns null when agents path has a non-numeric id', () => {
             expect(matchPluginPath('/apps/memories/agents/notanumber')).toBeNull()
         })
+
+        // `Number('')` is `0`, so an empty segment used to read as the id `0`.
+        it('returns null when the agent id segment is empty', () => {
+            expect(matchPluginPath('/apps/memories/agents//5')).toBeNull()
+        })
+
+        it('yields a null memory id when the memory id segment is empty', () => {
+            expect(matchPluginPath('/apps/memories/agents/42//7')).toEqual({
+                scope: 'agent',
+                agentId: 42,
+                memoryId: null,
+            })
+        })
     })
 
     describe('isPluginPath', () => {
