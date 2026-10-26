@@ -49,8 +49,7 @@ describe('route-detection', () => {
             expect(matchPluginPath('/apps/memories/agents/notanumber')).toBeNull()
         })
 
-        // `Number('')` is `0`, so an empty segment used to read as the id
-        // `0` — an agent the server would never route to.
+        // `Number('')` is `0`, so an empty segment used to read as the id `0`.
         it('returns null when the agent id segment is empty', () => {
             expect(matchPluginPath('/apps/memories/agents//5')).toBeNull()
         })

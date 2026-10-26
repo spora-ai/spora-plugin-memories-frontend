@@ -23,11 +23,10 @@
  *   'agents/:id'      → agent memories for agent `:id`
  *   'agents/:id/:n'   → agent scope plus a numeric trailing segment
  *
- * Both ids are parsed as numbers, and only a run of digits counts as
- * one. A segment that is not a number fails the whole match when it is
- * the agent id — the agent scope is unusable without one — and yields
- * `memoryId: null` when it is the memory id, because the memory is the
- * optional half of the path.
+ * Both ids are parsed as numbers, and only a run of digits counts as one:
+ * a non-numeric agent id fails the whole match (the agent scope is
+ * unusable without one), a non-numeric memory id yields `memoryId: null`
+ * (the memory half is optional).
  */
 const PLUGIN_PREFIX = '/apps/memories'
 
@@ -68,11 +67,9 @@ export function matchPluginPath(path: string): PluginRouteMatch | null {
 }
 
 /**
- * A path segment that is a run of digits, as a number.
- *
- * `Number('')` is `0` and `Number(' 12 ')` is `12`, so the coercion on its
- * own reads an empty segment as the id `0` — an agent the server would
- * never route to.
+ * Only a run of digits counts as an id: `Number('')` is `0` and
+ * `Number(' 12 ')` is `12`, so a plain coercion reads an empty segment as
+ * the id `0` — an agent the server would never route to.
  */
 function parseId(segment: string): number | null {
     if (!/^\d+$/.test(segment)) return null
